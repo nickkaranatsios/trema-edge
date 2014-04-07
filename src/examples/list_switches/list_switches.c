@@ -67,7 +67,7 @@ main( int argc, char *argv[] ) {
   add_periodic_event_callback( 30, timeout, NULL );
 
   add_periodic_event_callback( 2, ( void ( * ) ( void * ) )send_list_switches_request, NULL );
-  set_list_switches_reply_handler( handle_list_switches_reply );
+  set_list_switches_reply_handler( handle_list_switches_reply, NULL );
 
   start_trema();
 }

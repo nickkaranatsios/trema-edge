@@ -561,7 +561,7 @@ set_get_async_reply_handler( get_async_reply_handler callback, void *user_data )
 
 
 bool
-set_list_switches_reply_handler( list_switches_reply_handler callback ) {
+set_list_switches_reply_handler( list_switches_reply_handler callback, void *user_data ) {
   if ( callback == NULL ) {
     die( "Callback function ( list_switches_reply_handler ) must not be NULL." );
   }
@@ -573,6 +573,7 @@ set_list_switches_reply_handler( list_switches_reply_handler callback ) {
   debug( "Setting a list switches reply handler ( callback = %p ).", callback );
 
   event_handlers.list_switches_reply_callback = callback;
+  event_handlers.list_switches_reply_user_data = user_data;
 
   return true;
 }
@@ -2010,6 +2011,7 @@ insert_dpid( list_element **head, uint64_t *dpid ) {
 static void
 handle_list_switches_reply( uint16_t message_type, void *data, size_t length, void *user_data ) {
   UNUSED( message_type );
+  UNUSED( user_data );
   assert( data != NULL );
 
   uint64_t *dpid = ( uint64_t *) data;
@@ -2036,7 +2038,7 @@ handle_list_switches_reply( uint16_t message_type, void *data, size_t length, vo
   debug( "Calling list switches reply handler ( callback = %p ).",
          event_handlers.list_switches_reply_callback );
 
-  event_handlers.list_switches_reply_callback( switches, user_data );
+  event_handlers.list_switches_reply_callback( switches, event_handlers.list_switches_reply_user_data );
 
   list_element *element;
   for ( element = switches; element != NULL; element = element->next ) {

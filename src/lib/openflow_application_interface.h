@@ -298,6 +298,7 @@ typedef struct openflow_event_handlers {
   void *get_async_reply_user_data;
 
   list_switches_reply_handler list_switches_reply_callback;
+  void *list_switches_reply_user_data;
 } openflow_event_handlers_t;
 
 
@@ -368,7 +369,7 @@ bool set_queue_get_config_reply_handler( queue_get_config_reply_handler callback
 bool set_role_reply_handler( role_reply_handler callback, void *user_data );
 bool set_get_async_reply_handler( get_async_reply_handler callback, void *user_data );
 
-bool set_list_switches_reply_handler( list_switches_reply_handler callback );
+bool set_list_switches_reply_handler( list_switches_reply_handler callback, void *user_data );
 
 
 /********************************************************************************

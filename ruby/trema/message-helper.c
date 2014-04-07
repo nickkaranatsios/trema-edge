@@ -312,6 +312,14 @@ send_barrier_request( int argc, VALUE *argv, VALUE self ) {
 }
 
 
+static VALUE
+wrap_send_list_switches_request( int argc, VALUE *argv, VALUE self ) {
+  UNUSED( argc );
+  UNUSED( argv );
+  send_list_switches_request( ( void *  ) self );
+  return self;
+}
+
 void
 Init_message_helper( void ) {
   mMessageHelper = rb_define_module_under( mTrema, "MessageHelper" );
@@ -335,7 +343,8 @@ Init_message_helper( void ) {
   rb_define_module_function( mMessageHelper, "send_meter_config_multipart_request", send_meter_config_multipart_request, -1 );
   rb_define_module_function( mMessageHelper, "send_meter_features_multipart_request", send_meter_features_multipart_request, -1 );
   rb_define_module_function( mMessageHelper, "send_experimenter_multipart_request", send_experimenter_multipart_request, -1 );
-  rb_define_module_function( mMessageHelper, "send_barrier_request", send_barrier_request, - 1 );
+  rb_define_module_function( mMessageHelper, "send_barrier_request", send_barrier_request, -1 );
+  rb_define_module_function( mMessageHelper, "send_list_switches_request", wrap_send_list_switches_request, 0 );
 }
 
 

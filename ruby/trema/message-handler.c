@@ -28,6 +28,7 @@
 #include "messages/echo-reply-handler.h"
 #include "messages/get-config-reply-handler.h"
 #include "messages/features-reply-handler.h"
+#include "messages/list-switches-handler.h"
 
 
 extern VALUE mTrema;
@@ -46,6 +47,7 @@ install_handlers( VALUE self ) {
   set_echo_reply_handler( handle_echo_reply, ( void * ) self );
   set_get_config_reply_handler( handle_get_config_reply, ( void * ) self );
   set_features_reply_handler( handle_features_reply, ( void * ) self );
+  set_list_switches_reply_handler( handle_list_switches_reply, ( void * ) self );
   return self;
 }
 

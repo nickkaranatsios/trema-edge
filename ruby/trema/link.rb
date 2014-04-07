@@ -78,8 +78,8 @@ module Trema
       else
         @peers = @stanza.peers
         @link_id = link_id( @peers )
-        @name = "trema#{ @link_id }-0"
-        @name_peer = "trema#{ @link_id }-1"
+        @name = "#{ @link_id }-0"
+        @name_peer = "#{ @link_id }-1"
       end
       Link.add self
     end
