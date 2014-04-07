@@ -1,9 +1,9 @@
 #
-# Simple learning switch application in Ruby
+# Experimental application
 #
-# Author: Yasuhito Takamiya <yasuhito@gmail.com>
+# Author: Nick Karanatsios <yasuhito@gmail.com>
 #
-# Copyright (C) 2008-2013 NEC Corporation
+# Copyright (C) 2014 NEC Corporation
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2, as
@@ -20,6 +20,7 @@
 #
 
 
+require "ostruct"
 require "trema/exact-match"
 require_relative "fdb"
 
@@ -28,8 +29,8 @@ require_relative "fdb"
 # A OpenFlow controller class that emulates a layer-2 switch.
 #
 class BwEnforcer < Controller
-  oneshot_timer_event :get_list_switches, 10
-#  add_timer_event :age_fdb, 5, :periodic
+#  oneshot_timer_event :get_list_switches, 10
+  oneshot_timer_event :print_topology,20
 
 
   def start
@@ -47,6 +48,8 @@ class BwEnforcer < Controller
                        flags: OFPFF_SEND_FLOW_REM,
                        instructions: [ ins ]
     )
+    # retrieve ports for switch
+    send_message datapath_id, PortDescMultipartRequest.new 
   end
 
   def list_switches_reply dpids
@@ -64,7 +67,34 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
   end
 
   def port_desc_multipart_reply datapath_id, message
-    puts "port desc reply for 0x#{ datapath_id.to_s(16) }: #{message.inspect}"
+    switch = get_switch( datapath_id )
+    unless switch.empty?
+      sw = switch.shift
+      switches[ datapath_id ] ||= find_links( sw.name )
+    end
+    # find the links for the current switch
+    puts @switches.inspect
+  end
+
+  def print_topology
+    @switch.to_svg
+  end
+
+  def find_links switch_name
+    links = []
+    link_node = OpenStruct.new
+    Trema::Link.each do | link |
+      peers = link.peers[ 0 ].split( ':' )
+      src = peers[ 0 ]
+      if src == switch_name 
+        link_node.from = src
+        link_node.from_port = link.name
+        link_node.to = link.peers[ 1 ]
+        link_node.to_port = link.name_peer
+        links << link_node
+      end
+    end
+    links
   end
 
   def packet_in datapath_id, message
@@ -90,6 +120,18 @@ puts "port_no = #{ port_no }"
   private
   ##############################################################################
 
+  def to_svg
+  end
+
+  def switches
+    @switches ||= {}
+  end
+
+  def get_switch datapath_id
+    ds = "0x#{ datapath_id.to_s(16) }"
+    Trema::TremaSwitch.instances.values.select { | sw | sw.dpid_short == ds }
+  end
+ 
 
   def flow_mod datapath_id, message, port_no
     action = SendOutPort.new( port_number: port_no )
