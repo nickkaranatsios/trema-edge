@@ -30,7 +30,7 @@ require_relative "fdb"
 #
 class BwEnforcer < Controller
 #  oneshot_timer_event :get_list_switches, 10
-  oneshot_timer_event :print_topology,20
+  oneshot_timer_event :print_topology, 10
 
 
   def start
@@ -73,20 +73,54 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
       switches[ datapath_id ] ||= find_links( sw.name )
     end
     # find the links for the current switch
-    puts @switches.inspect
   end
 
   def print_topology
-    @switch.to_svg
+    puts @switches.inspect
+    svg_js=""
+#<!DOCTYPE html>
+#<html>
+#<body>
+#
+#<svg width="400" height="110">
+#  <rect width="20" height="20" style="fill:rgb(0,0,255);stroke-width:3;stroke:rgb(0,0,0)"/>
+# <line x1="20" y1="10" x2="50" y2="10" style="stroke:rgb(255,0,0);stroke-width:2" />
+#  Sorry, your browser does not support inline SVG.  
+#</svg>
+# 
+#</body>
+#</html>
+    svg_js += <<-EOT
+      <!DOCTYPE html>
+      <html>
+      <body>
+      <svg width="800" height="800">
+    EOT
+    @switches.each do | key, value |
+      puts  "0x#{ key.to_s(16) }, ports #{ value.inspect }"
+      svg_js += <<-EOT
+      EOT
+      svg_js += <<-EOT
+          var draw = SVG("drawing")
+          var rect = draw.rect(50,50)
+          draw.line(0, 50, 100, 150),stroke( {width:1})
+        } else {
+          alert("SVG is not supported");
+        }
+        "0x#{ key.to_s(16) }, ports #{ value.inspect }"
+      EOT
+    end
+    #puts svg_js
+    to_svg
   end
 
   def find_links switch_name
     links = []
-    link_node = OpenStruct.new
     Trema::Link.each do | link |
       peers = link.peers[ 0 ].split( ':' )
       src = peers[ 0 ]
       if src == switch_name 
+        link_node = OpenStruct.new
         link_node.from = src
         link_node.from_port = link.name
         link_node.to = link.peers[ 1 ]
