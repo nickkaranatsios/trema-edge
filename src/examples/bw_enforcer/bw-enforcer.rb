@@ -32,6 +32,7 @@ class BwEnforcer < Controller
   oneshot_timer_event :store_topology, 10
 
   def start
+puts "start is called"
     @fdb = FDB.new
     @redis_client = Redis.new
   end
@@ -73,9 +74,16 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
     # find the links for the current switch
   end
 
+  def json_str v
+    str = "["
+    str += v.map { |x| x.to_h.to_json }.join( ',' )
+    str << "]"
+  end
+
   def store_topology
     @switches.each do | k, v |
-      puts "key is #{ k } value is #{ v.to_json }"
+      puts "key is #{ k } value is #{ v.inspect }"
+      @redis_client.hset "topo", k.to_s(16), json_str( v )
     end
     puts @switches.inspect
     svg_js=""

@@ -1,9 +1,6 @@
-require 'eventmachine'
 require 'sinatra/base'
-require 'thin'
 require 'redis'
 require 'json'
-
 
 class DemoServlet < Sinatra::Base
   attr_reader :redis_client
@@ -28,41 +25,14 @@ class DemoServlet < Sinatra::Base
     body = 'hello world'
   end
   
-  get 'delayed-hello' do
-    EM.defer do
-      sleep 5
-    end
-    'background hello'
-  end
-
-  configure do
+  configure( :delevelopment ) do | c |
+    require "sinatra/reloader"
+    c.also_reload "*.rb"
     set :public_folder, "./public"
-    set :threaded, false
   end
 end
     
-def run opts
-  EM.run do
-    server = opts[ :server ] || 'thin'
-    host = opts[ :host ] || '0.0.0.0'
-    port = opts[ :port ] || '4444'
-    web_app = opts[ :app ]
-    dispatch = Rack::Builder.app do
-      map '/' do 
-        run web_app
-      end
-    end
-    Rack::Server.start({
-      app: dispatch,
-#      daemonize: true,
-      server: server,
-      Host: host,
-      Port: port
-    })
-  end
-end
-
-run app: DemoServlet.new
+#run app: DemoServlet.new
 
 #
 #
