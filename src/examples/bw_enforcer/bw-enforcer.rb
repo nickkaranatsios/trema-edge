@@ -23,6 +23,7 @@
 require 'ostruct'
 require 'redis'
 require 'trema/exact-match'
+require 'json'
 require_relative 'fdb'
 
 
@@ -74,7 +75,7 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
 
   def store_topology
     @switches.each do | k, v |
-      puts "key is #{ k } value is #{ v.to_s }"
+      puts "key is #{ k } value is #{ v.to_json }"
     end
     puts @switches.inspect
     svg_js=""
