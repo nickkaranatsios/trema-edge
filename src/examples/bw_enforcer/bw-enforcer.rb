@@ -1,7 +1,7 @@
 #
 # Experimental application
 #
-# Author: Nick Karanatsios <yasuhito@gmail.com>
+# Author: Nick Karanatsios <nickkaranatsios@gmail.com>
 #
 # Copyright (C) 2014 NEC Corporation
 #
@@ -20,23 +20,20 @@
 #
 
 
-require "ostruct"
-require "trema/exact-match"
-require_relative "fdb"
+require 'ostruct'
+require 'redis'
+require 'trema/exact-match'
+require_relative 'fdb'
 
 
-#
-# A OpenFlow controller class that emulates a layer-2 switch.
-#
 class BwEnforcer < Controller
 #  oneshot_timer_event :get_list_switches, 10
-  oneshot_timer_event :print_topology, 10
-
+  oneshot_timer_event :store_topology, 10
 
   def start
     @fdb = FDB.new
+    @redis_client = Redis.new
   end
-
 
   def switch_ready datapath_id
     puts "switch ready 0x#{datapath_id.to_s(16)}"
@@ -75,7 +72,10 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
     # find the links for the current switch
   end
 
-  def print_topology
+  def store_topology
+    @switches.each do | k, v |
+      puts "key is #{ k } value is #{ v.to_s }"
+    end
     puts @switches.inspect
     svg_js=""
 #<!DOCTYPE html>
@@ -94,24 +94,20 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
       <!DOCTYPE html>
       <html>
       <body>
-      <svg width="800" height="800">
+      <svg width="100%" height="100%">
     EOT
     @switches.each do | key, value |
+      svg_js += <<-EOT
+        <rect width="50" height="50", x="100", y="200"/>
+      EOT
       puts  "0x#{ key.to_s(16) }, ports #{ value.inspect }"
       svg_js += <<-EOT
       EOT
       svg_js += <<-EOT
-          var draw = SVG("drawing")
-          var rect = draw.rect(50,50)
-          draw.line(0, 50, 100, 150),stroke( {width:1})
-        } else {
-          alert("SVG is not supported");
-        }
         "0x#{ key.to_s(16) }, ports #{ value.inspect }"
       EOT
     end
-    #puts svg_js
-    to_svg
+    puts svg_js
   end
 
   def find_links switch_name
