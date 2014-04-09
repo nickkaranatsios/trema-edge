@@ -85,7 +85,7 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
       puts "key is #{ k } value is #{ v.inspect }"
       @redis_client.hset "topo", k.to_s(16), json_str( v )
     end
-    dial_algorithm
+    dial_algorithm src = "e1"
     return
     puts @switches.inspect
     svg_js=""
@@ -162,33 +162,53 @@ puts "port_no = #{ port_no }"
   private
   ##############################################################################
 
-  def dial_algorithm
+  def find_min distance_labels
+    keys = distance_labels.keys.sort
+    cost = nil
+    unless keys.empty?
+      cost = keys.first
+    end
+    cost
+  end
+
+  def traverse cost, links, link_costs, dl, pred
+    links.each do | link |
+      next if link.cost == 0
+      new_cost = cost + link.cost
+puts "new cost #{ new_cost }"
+      if link_costs[ cost ] > new_cost
+        link.cost = new_cost
+        pred[ link.to ] = link.from
+        dl[ new_cost ] = link.to
+      end
+    end
+  end
+
+  def dial_algorithm src
+    origin = @switches.keys.select { | k | k == src.to_i( 16 ) }
     # assign dl[ 0 ] = src
     # find_min_next_node dl
     # while find_min_next_node
     # end
     # start with edge switch 1
-    distance_label = {}
-    edge_sw = @switches.keys.select { | k | k == 225 }
-    unless edge_sw.empty?
+    unless origin.empty?
+      origin = origin.first
       # note "e1".to_i(16)
-      topo = @switches
+      links = @switches
       dl = {}
-      pred = {}
-      edge = edge_sw.first
-      links = topo[ edge ]
-      cost = 0
-      links.each do | link |
-        next if link.cost == 0
-        to_cost = 100
-        dl[ cost ] = link.from
-        new_cost = cost + link.cost
-puts "new cost #{ new_cost }"
-        if to_cost > new_cost
-          link.cost = new_cost
-          pred[ link.to ] = link.from
-          dl[ new_cost ] = link.to
+      link_costs = @switches
+      links_costs.each do | k, v | 
+        v.each do | l |
+          l.cost = 1000
         end
+      end
+      pred = {}
+      dl[ 0 ] = origin
+      while not ( cost = find_min( dl ) ).nil?
+puts "min cost #{ cost }"
+        traverse cost, links[ dl[ cost ] ], link_costs, dl, pred
+        dl.delete cost
+        break if cost == 4
       end
       puts dl.inspect
       puts pred.inspect
