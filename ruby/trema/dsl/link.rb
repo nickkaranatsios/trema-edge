@@ -22,10 +22,16 @@ module Trema
   module DSL
     class Link
       attr_reader :peers
+      attr_reader :cost
 
 
-      def initialize peer0, peer1
+      # cost value for link
+      def initialize peer0, peer1, *cost
         @peers = [ peer0, peer1 ]
+        @cost = 0
+        unless cost.empty?
+          @cost = cost.first
+        end
       end
     end
   end

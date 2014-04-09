@@ -85,6 +85,8 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
       puts "key is #{ k } value is #{ v.inspect }"
       @redis_client.hset "topo", k.to_s(16), json_str( v )
     end
+    dial_algorithm
+    return
     puts @switches.inspect
     svg_js=""
 #<!DOCTYPE html>
@@ -130,6 +132,7 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
         link_node.from_port = link.name
         link_node.to = link.peers[ 1 ]
         link_node.to_port = link.name_peer
+        link_node.cost = link.cost
         links << link_node
       end
     end
@@ -158,6 +161,40 @@ puts "port_no = #{ port_no }"
   ##############################################################################
   private
   ##############################################################################
+
+  def dial_algorithm
+    # assign dl[ 0 ] = src
+    # find_min_next_node dl
+    # while find_min_next_node
+    # end
+    # start with edge switch 1
+    distance_label = {}
+    edge_sw = @switches.keys.select { | k | k == 225 }
+    unless edge_sw.empty?
+      # note "e1".to_i(16)
+      topo = @switches
+      dl = {}
+      pred = {}
+      edge = edge_sw.first
+      links = topo[ edge ]
+      cost = 0
+      links.each do | link |
+        next if link.cost == 0
+        to_cost = 100
+        dl[ cost ] = link.from
+        new_cost = cost + link.cost
+puts "new cost #{ new_cost }"
+        if to_cost > new_cost
+          link.cost = new_cost
+          pred[ link.to ] = link.from
+          dl[ new_cost ] = link.to
+        end
+      end
+      puts dl.inspect
+      puts pred.inspect
+    end
+  end
+
 
   def to_svg
   end

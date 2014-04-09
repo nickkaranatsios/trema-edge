@@ -60,6 +60,13 @@ module Trema
     #
     attr_reader :peers
 
+    # 
+    # A cost associated with link
+    #
+    # @return [Fixnum]
+    #
+    attr_reader :cost
+
 
     #
     # Creates a new Trema link from {DSL::Link}
@@ -71,6 +78,7 @@ module Trema
     #
     def initialize stanza
       @stanza = stanza
+      @cost = @stanza.cost
       if real_eth?
         @name = real_eth
         @name_peer = nil

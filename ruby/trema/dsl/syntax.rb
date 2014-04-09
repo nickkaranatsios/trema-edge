@@ -53,8 +53,8 @@ module Trema
       end
 
 
-      def link peer0, peer1
-        stanza = Trema::DSL::Link.new( peer0, peer1 )
+      def link peer0, peer1, *cost
+        stanza = Trema::DSL::Link.new( peer0, peer1, *cost )
         Trema::Link.new( stanza )
       end
 
