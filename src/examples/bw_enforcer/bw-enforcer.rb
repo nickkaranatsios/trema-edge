@@ -27,7 +27,7 @@ require 'json'
 require 'observer'
 require_relative 'fdb'
 require_relative 'dial-algorithm'
-
+require_relative 'data-delegator'
 
 class BwEnforcer < Controller
   include Observable
@@ -37,6 +37,7 @@ class BwEnforcer < Controller
     @fdb = FDB.new
     @redis_client = Redis.new
     @dial_algorithm = DialAlgorithm.new
+    @data = DataDelegator.new
     add_observer @dial_algorithm
   end
 
@@ -55,8 +56,10 @@ class BwEnforcer < Controller
   end
 
   def port_desc_multipart_reply datapath_id, message
+    @data.ports.setup datapath_id, message.parts[ 0 ].ports
+    @data.ports.to_s
     # at the moment assume that there are 0 parts in message
-puts "datapath_id #{ datapath_id.to_s( 16 ) } #{message.parts[ 0 ].ports}"
+puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
     switch = get_switch( datapath_id )
     unless switch.nil?
       switches[ datapath_id ] ||= find_links( switch.name, message.parts[ 0 ].ports )
@@ -71,10 +74,8 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{message.parts[ 0 ].ports}"
   end
 
   def store_topology
-    @hosts = {}
-    Trema::Host.each do | h |
-      @hosts[ h.mac ] = OpenStruct.new( name: h.name, mac: h.mac, ip: h.ip )
-    end
+    @data.hosts.setup Trema::Host
+    @data.hosts.to_s
     @switches.each do | k, v |
       puts "key is #{ k } value is #{ v.inspect }"
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
@@ -123,15 +124,16 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{message.parts[ 0 ].ports}"
       peers = link.peers[ 0 ].split( ':' )
       src = peers[ 0 ]
       if src == switch_name 
-        link_node = OpenStruct.new
-        link_node.from = src
-        link_node.from_dpid_short = src.to_i( 16 )
-        link_node.from_port = link.name
-        link_node.from_port_no = ports.select { | p | p.name == link_node.from_port }.first.port_no
-        link_node.to = link.peers[ 1 ]
-        link_node.to_dpid_short = link_node.to.to_i( 16 )
-        link_node.to_port = link.name_peer
-        link_node.cost = link.cost
+        link_node = OpenStruct.new( 
+          from: src,
+          from_dpid_short: src.to_i( 16 ),
+          from_port: link.name,
+          from_port_no: ports.select { | p | p.name == link.name }.first.port_no,
+          to: link.peers[ 1 ],
+          to_dpid_short: link.peers[ 1 ].to_i( 16 ),
+          to_port: link.name_peer,
+          cost: link.cost
+        )
         links << link_node
       end
     end
@@ -143,13 +145,15 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{message.parts[ 0 ].ports}"
     puts message.packet_info.eth_src
 	  puts message.packet_info.ipv4
     puts message.packet_info.ipv4_src if message.packet_info.ipv4
-    puts @hosts[message.packet_info.eth_src.to_s].inspect
-    dest = dest_for( @hosts[ message.packet_info.eth_dst.to_s ].name )
+    puts ( @data.hosts.select message.packet_info.eth_src.to_s ).inspect
+
+    host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
+    dest = dest_for( host_name )
     puts "dest is #{dest.inspect}"
     src = get_switch( datapath_id )
     puts src.name
     path = @dial_algorithm.execute src.name, dest
-    path.push @hosts[ message.packet_info.eth_dst.to_s ].name 
+    path.push host_name
     puts path.inspect
     #if path empty send to flood packet
     install_path path, message
@@ -189,12 +193,12 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{message.parts[ 0 ].ports}"
     ""
   end
 
-  def flow_mod datapath_id, message, port_no
+  def flow_mod datapath_id, match, port_no
     action = SendOutPort.new( port_number: port_no )
     ins = Instructions::ApplyAction.new( actions: [ action ] )
     send_flow_mod_add(
       datapath_id,
-      match: ExactMatch.from( message ),
+      match: match,
       instructions: [ ins ]
     )
   end
@@ -225,8 +229,10 @@ puts match.inspect
       unless link.empty? and link.nil?
         link.each do | l |
           if l.from == from_sw && l.to == fwd_to
-puts "sending a flow mod to #{ l.from_dpid_short } to port #{ l.from_port_no }"
-            flow_mod l.from_dpid_short, message, l.from_port_no
+puts "sending a flow mod to #{ l.from_dpid_short.to_s( 16 ) } to port #{ l.from_port_no } match in_port #{ match.in_port }"
+            flow_mod l.from_dpid_short, match, l.from_port_no
+            sleep 1
+            match.in_port = @data.ports.select( l.to_dpid_short ).find_by_name( l.to_port ).port_no if l.to_dpid_short > 0
           end
         end
       end
