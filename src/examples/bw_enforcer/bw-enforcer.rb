@@ -24,21 +24,24 @@ require 'ostruct'
 require 'redis'
 require 'trema/exact-match'
 require 'json'
+require 'observer'
 require_relative 'fdb'
+require_relative 'dial-algorithm'
 
 
 class BwEnforcer < Controller
-#  oneshot_timer_event :get_list_switches, 10
+  include Observable
   oneshot_timer_event :store_topology, 10
 
   def start
-puts "start is called"
     @fdb = FDB.new
     @redis_client = Redis.new
+    @dial_algorithm = DialAlgorithm.new
+    add_observer @dial_algorithm
   end
 
   def switch_ready datapath_id
-    puts "switch ready 0x#{datapath_id.to_s(16)}"
+    puts "switch ready 0x#{datapath_id.to_s( 16 )}"
     action = SendOutPort.new( port_number: OFPP_CONTROLLER, max_len: OFPCML_NO_BUFFER )
     ins = ApplyAction.new( actions: [ action ] )
     send_flow_mod_add( datapath_id,
@@ -51,25 +54,12 @@ puts "start is called"
     send_message datapath_id, PortDescMultipartRequest.new 
   end
 
-  def list_switches_reply dpids
-    puts "list_switches reply #{dpids.inspect}"
-    dpids.each do | dpid |
-      port_desc_request = PortDescMultipartRequest.new( transaction_id: 123 )
-      send_message dpid, port_desc_request
-    end
-  end
-
-  def get_list_switches
-puts "sending list switches"
-puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
-    send_list_switches_request
-  end
-
   def port_desc_multipart_reply datapath_id, message
+    # at the moment assume that there are 0 parts in message
+puts "datapath_id #{ datapath_id.to_s( 16 ) } #{message.parts[ 0 ].ports}"
     switch = get_switch( datapath_id )
-    unless switch.empty?
-      sw = switch.shift
-      switches[ datapath_id ] ||= find_links( sw.name )
+    unless switch.nil?
+      switches[ datapath_id ] ||= find_links( switch.name, message.parts[ 0 ].ports )
     end
     # find the links for the current switch
   end
@@ -81,11 +71,17 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
   end
 
   def store_topology
+    @hosts = {}
+    Trema::Host.each do | h |
+      @hosts[ h.mac ] = OpenStruct.new( name: h.name, mac: h.mac, ip: h.ip )
+    end
     @switches.each do | k, v |
       puts "key is #{ k } value is #{ v.inspect }"
-      @redis_client.hset "topo", k.to_s(16), json_str( v )
+      @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
     end
-    dial_algorithm src = "e1"
+    changed
+    notify_observers self, @switches
+    @dial_algorithm.execute src = "e1", dst = "e2"
     return
     puts @switches.inspect
     svg_js=""
@@ -121,7 +117,7 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
     puts svg_js
   end
 
-  def find_links switch_name
+  def find_links switch_name, ports
     links = []
     Trema::Link.each do | link |
       peers = link.peers[ 0 ].split( ':' )
@@ -129,8 +125,11 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
       if src == switch_name 
         link_node = OpenStruct.new
         link_node.from = src
+        link_node.from_dpid_short = src.to_i( 16 )
         link_node.from_port = link.name
+        link_node.from_port_no = ports.select { | p | p.name == link_node.from_port }.first.port_no
         link_node.to = link.peers[ 1 ]
+        link_node.to_dpid_short = link_node.to.to_i( 16 )
         link_node.to_port = link.name_peer
         link_node.cost = link.cost
         links << link_node
@@ -140,16 +139,21 @@ puts "trema switches #{Trema::TremaSwitch.instances.inspect}"
   end
 
   def packet_in datapath_id, message
-puts "packet in #{datapath_id}, #{message.inspect}"
-    @fdb.learn message.eth_src, message.in_port
-    port_no = @fdb.port_no_of( message.eth_dst )
-puts "port_no = #{ port_no }"
-    if port_no
-      flow_mod datapath_id, message, port_no
-      packet_out datapath_id, message, port_no
-    else
-      flood datapath_id, message
-    end
+    puts "packet in #{datapath_id}, #{message.inspect}"
+    puts message.packet_info.eth_src
+	  puts message.packet_info.ipv4
+    puts message.packet_info.ipv4_src if message.packet_info.ipv4
+    puts @hosts[message.packet_info.eth_src.to_s].inspect
+    dest = dest_for( @hosts[ message.packet_info.eth_dst.to_s ].name )
+    puts "dest is #{dest.inspect}"
+    src = get_switch( datapath_id )
+    puts src.name
+    path = @dial_algorithm.execute src.name, dest
+    path.push @hosts[ message.packet_info.eth_dst.to_s ].name 
+    puts path.inspect
+    #if path empty send to flood packet
+    install_path path, message
+    packet_out datapath_id, message, 2
   end
 
 
@@ -162,60 +166,6 @@ puts "port_no = #{ port_no }"
   private
   ##############################################################################
 
-  def find_min distance_labels
-    keys = distance_labels.keys.sort
-    cost = nil
-    unless keys.empty?
-      cost = keys.first
-    end
-    cost
-  end
-
-  def traverse cost, links, link_costs, dl, pred
-    links.each do | link |
-      next if link.cost == 0
-      new_cost = cost + link.cost
-puts "new cost #{ new_cost }"
-      if link_costs[ cost ] > new_cost
-        link.cost = new_cost
-        pred[ link.to ] = link.from
-        dl[ new_cost ] = link.to
-      end
-    end
-  end
-
-  def dial_algorithm src
-    origin = @switches.keys.select { | k | k == src.to_i( 16 ) }
-    # assign dl[ 0 ] = src
-    # find_min_next_node dl
-    # while find_min_next_node
-    # end
-    # start with edge switch 1
-    unless origin.empty?
-      origin = origin.first
-      # note "e1".to_i(16)
-      links = @switches
-      dl = {}
-      link_costs = @switches
-      links_costs.each do | k, v | 
-        v.each do | l |
-          l.cost = 1000
-        end
-      end
-      pred = {}
-      dl[ 0 ] = origin
-      while not ( cost = find_min( dl ) ).nil?
-puts "min cost #{ cost }"
-        traverse cost, links[ dl[ cost ] ], link_costs, dl, pred
-        dl.delete cost
-        break if cost == 4
-      end
-      puts dl.inspect
-      puts pred.inspect
-    end
-  end
-
-
   def to_svg
   end
 
@@ -225,9 +175,19 @@ puts "min cost #{ cost }"
 
   def get_switch datapath_id
     ds = "0x#{ datapath_id.to_s(16) }"
-    Trema::TremaSwitch.instances.values.select { | sw | sw.dpid_short == ds }
+    Trema::TremaSwitch.instances.values.select { | sw | sw.dpid_short == ds }.first
   end
  
+  def dest_for host
+    @switches.each do | k, v |
+      links = v
+      edge = links.select { | l | l.to == host }
+      unless edge.empty?
+        return edge.first.from
+      end
+    end
+    ""
+  end
 
   def flow_mod datapath_id, message, port_no
     action = SendOutPort.new( port_number: port_no )
@@ -250,10 +210,41 @@ puts "packet out to #{datapath_id}, port #{port_no}"
     )
   end
 
+  def install_path path, message
+    match = ExactMatch.from( message )
+puts match.inspect
+    dst_host = path.pop
+    path.each_index do | idx |
+      from_sw = path[ idx ]
+      if idx == path.length - 1
+        fwd_to = dst_host
+      else
+        fwd_to = path[ idx + 1 ]
+      end
+      link = @switches[ from_sw.to_i( 16 ) ]
+      unless link.empty? and link.nil?
+        link.each do | l |
+          if l.from == from_sw && l.to == fwd_to
+puts "sending a flow mod to #{ l.from_dpid_short } to port #{ l.from_port_no }"
+            flow_mod l.from_dpid_short, message, l.from_port_no
+          end
+        end
+      end
+    end
+  end
 
   def flood datapath_id, message
     packet_out datapath_id, message, OFPP_ALL
   end
+
+#  def each_link_from_to from, to, &block
+#    each_link from, to, &block
+#  end
+
+#  def each_link from, to
+#    array.select { | l.from == from && l.to == to }
+#  end
+  
 end
 
 
