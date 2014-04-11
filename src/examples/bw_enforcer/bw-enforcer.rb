@@ -25,16 +25,15 @@ require 'redis'
 require 'trema/exact-match'
 require 'json'
 require 'observer'
-require_relative 'fdb'
 require_relative 'dial-algorithm'
 require_relative 'data-delegator'
 
 class BwEnforcer < Controller
   include Observable
   oneshot_timer_event :store_topology, 10
+  oneshot_timer_event :reroute_test, 60
 
   def start
-    @fdb = FDB.new
     @redis_client = Redis.new
     @dial_algorithm = DialAlgorithm.new
     @data = DataDelegator.new
@@ -142,27 +141,28 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
 
   def packet_in datapath_id, message
     puts "packet in #{datapath_id}, #{message.inspect}"
-    puts message.packet_info.eth_src
-	  puts message.packet_info.ipv4
-    puts message.packet_info.ipv4_src if message.packet_info.ipv4
-    puts ( @data.hosts.select message.packet_info.eth_src.to_s ).inspect
-
-    host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
-    dest = dest_for( host_name )
-    puts "dest is #{dest.inspect}"
+    dst_host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
+    dst = dst_for( dst_host_name )
     src = get_switch( datapath_id )
-    puts src.name
-    path = @dial_algorithm.execute src.name, dest
-    path.push host_name
+    path = @dial_algorithm.execute src.name, dst
+    return if path.empty?
+    @data.paths.setup "#{ @data.hosts.select( message.packet_info.eth_src.to_s ).name }:#{ dst_host_name }", path, message
+    path.push dst_host_name
     puts path.inspect
-    #if path empty send to flood packet
     install_path path, message
-    packet_out datapath_id, message, 2
   end
 
-
-  def age_fdb
-#    @fdb.age
+  def reroute_test
+    @data.paths.for_each_path do | src_dst_key, value |
+      items = src_dst_key.split( ':' )
+      src_host_name = items[ 0 ]
+      dst_host_name = items[ 1 ]
+      path = value.path
+      message = value.pkt_in_message
+      path.push dst_host_name
+      puts path.inspect
+      reroute_path path, message
+    end
   end
 
 
@@ -182,7 +182,7 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
     Trema::TremaSwitch.instances.values.select { | sw | sw.dpid_short == ds }.first
   end
  
-  def dest_for host
+  def dst_for host
     @switches.each do | k, v |
       links = v
       edge = links.select { | l | l.to == host }
@@ -193,14 +193,25 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
     ""
   end
 
-  def flow_mod datapath_id, match, port_no
+  def flow_mod datapath_id, match, port_no, command = :add
     action = SendOutPort.new( port_number: port_no )
     ins = Instructions::ApplyAction.new( actions: [ action ] )
-    send_flow_mod_add(
-      datapath_id,
-      match: match,
-      instructions: [ ins ]
-    )
+    if command == :add
+      send_flow_mod_add(
+        datapath_id,
+        match: match,
+        instructions: [ ins ]
+      )
+    elsif command == :del
+puts "sending a flow mod delete #{ match } #{ match.inspect }"
+      send_flow_mod_del(
+        datapath_id,
+        match: match,
+        out_port: OFPP_ANY,
+        out_group: OFPG_ANY,
+        instructions: [ ins ]
+      )
+    end
   end
 
 
@@ -218,6 +229,7 @@ puts "packet out to #{datapath_id}, port #{port_no}"
     match = ExactMatch.from( message )
 puts match.inspect
     dst_host = path.pop
+    packet_out_port = nil
     path.each_index do | idx |
       from_sw = path[ idx ]
       if idx == path.length - 1
@@ -226,21 +238,78 @@ puts match.inspect
         fwd_to = path[ idx + 1 ]
       end
       link = @switches[ from_sw.to_i( 16 ) ]
-      unless link.empty? and link.nil?
-        link.each do | l |
-          if l.from == from_sw && l.to == fwd_to
-puts "sending a flow mod to #{ l.from_dpid_short.to_s( 16 ) } to port #{ l.from_port_no } match in_port #{ match.in_port }"
-            flow_mod l.from_dpid_short, match, l.from_port_no
-            sleep 1
-            match.in_port = @data.ports.select( l.to_dpid_short ).find_by_name( l.to_port ).port_no if l.to_dpid_short > 0
+      unless link.nil?
+        unless link.empty?
+          link.each do | l |
+            if l.from == from_sw && l.to == fwd_to
+              packet_out_port = l.from_port_no if idx == 0
+puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port #{ l.from_port_no } when match in_port #{ match.in_port }"
+              flow_mod l.from_dpid_short, match, l.from_port_no
+
+              output_port = match.in_port
+
+              reverse_match = match_reverse( match )
+              reverse_match.in_port = l.from_port_no
+
+puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port #{ output_port } when match in_port #{ reverse_match.in_port }"
+              flow_mod l.from_dpid_short, reverse_match, output_port
+
+              match.in_port = @data.ports.select( l.to_dpid_short ).find_by_name( l.to_port ).port_no if l.to_dpid_short > 0
+              sleep 1
+            end
+          end
+        end
+      end
+    end
+    packet_out message.datapath_id, message, packet_out_port unless packet_out_port.nil?
+  end
+
+  def reroute_path path, message
+    match = ExactMatch.from( message )
+    dst_host = path.pop
+    path.each_index do | idx |
+      from_sw = path[ idx ]
+      if idx == path.length - 1
+        fwd_to = dst_host
+      else
+        fwd_to = path[ idx + 1 ]
+      end
+      link = @switches[ from_sw.to_i( 16 ) ]
+      unless link.nil?
+        unless link.empty?
+          link.each do | l |
+            if l.from == from_sw && l.to == fwd_to
+              flow_mod l.from_dpid_short, match, l.from_port_no, :del
+puts "sending a flow mod-del to #{ l.from_dpid_short.to_s( 16 ) } output to port #{ l.from_port_no } when match in_port #{ match.in_port }"
+              output_port = match.in_port
+              reverse_match = match_reverse( match )
+              reverse_match.in_port = l.from_port_no
+
+puts "sending a flow mod-del to #{ l.from_dpid_short.to_s( 16 ) } output to port #{ output_port } when match in_port #{ reverse_match.in_port }"
+              flow_mod l.from_dpid_short, reverse_match, output_port, :del
+              match.in_port = @data.ports.select( l.to_dpid_short ).find_by_name( l.to_port ).port_no if l.to_dpid_short > 0
+              sleep 1
+            end
           end
         end
       end
     end
   end
 
-  def flood datapath_id, message
-    packet_out datapath_id, message, OFPP_ALL
+  def match_reverse match
+    reverse_match = match.clone
+    temp = reverse_match.eth_src
+    reverse_match.eth_src = reverse_match.eth_dst
+    reverse_match.eth_dst = temp
+            
+    temp = reverse_match.ipv4_src
+    reverse_match.ipv4_src = reverse_match.ipv4_dst
+    reverse_match.ipv4_dst = temp
+
+    temp = reverse_match.udp_src
+    reverse_match.udp_src = reverse_match.udp_dst
+    reverse_match.udp_dst = temp
+    reverse_match
   end
 
 #  def each_link_from_to from, to, &block

@@ -24,6 +24,10 @@ module Trema
       send_flow_mod datapath_id, options
     end
 
+    def send_flow_mod_del datapath_id, options
+      options[ :command ] = OFPFC_DELETE
+      send_flow_mod datapath_id, options
+    end
 
     def send_group_mod_add datapath_id, options
       options[ :command ] = OFPGC_ADD

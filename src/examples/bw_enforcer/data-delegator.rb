@@ -59,12 +59,41 @@ end
 class LinkHash
 end
 
+class PathHash
+  attr_reader :paths
+
+  def setup key, path, pkt_in_message
+    # key is a concatenation of src and dst vhost's names
+    # one distinct path from src to dst
+    paths[ key ] = OpenStruct.new( path: path, pkt_in_message: pkt_in_message )
+  end
+
+  def for_each_path &block
+    @paths.each do | k, v |
+      block.call k, v
+    end
+  end
+
+  def select_all
+    @paths.values
+  end
+
+  def paths
+    @paths ||= {}
+  end
+end
+
 
 class DataDelegator < SimpleDelegator
   def initialize
-    @hosts = HostHash.new
-    @links = LinkHash.new
-    @ports = PortHash.new
+    %w( Host Link Port Path ).each do | cls |
+      method = "#{ cls.downcase }s"
+      attr = "@#{ method }"
+      eval "#{ attr } = #{ cls }Hash.new"
+    end
+#    @hosts = HostHash.new
+#    @links = LinkHash.new
+#    @ports = PortHash.new
     super @hosts
   end
 
@@ -78,6 +107,10 @@ class DataDelegator < SimpleDelegator
 
   def ports
     __setobj__ @ports
+  end
+
+  def paths
+    __setobj__ @paths
   end
 end
 
