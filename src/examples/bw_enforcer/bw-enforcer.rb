@@ -161,14 +161,22 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
       message = value.pkt_in_message
       path.push dst_host_name
       puts path.inspect
-      reroute_path path, message
+      #reroute_path path, message
+      send_flow_stats path, message
     end
   end
 
+  def flow_multipart_reply datapath_id, message
+    link = @switches[ datapath_id.to_s( 16 ) ]
+    puts "link info: #{ link.inspect }"
+    puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }, #{ message.inspect }"
+    puts
+  end
 
   ##############################################################################
   private
   ##############################################################################
+
 
   def to_svg
   end
@@ -223,6 +231,49 @@ puts "packet out to #{datapath_id}, port #{port_no}"
       packet_in: message,
       actions: [ action ]
     )
+  end
+
+  def send_flow_stats path, message
+    match = ExactMatch.from( message )    
+    dst_host = path.pop
+    path.each_index do | idx |
+      from_sw = path[ idx ]
+      if idx == path.length - 1
+        fwd_to = dst_host
+      else
+        fwd_to = path[ idx + 1 ]
+      end
+      link = @switches[ from_sw.to_i( 16 ) ]
+      each_link link do | l |
+        if l.from == from_sw && l.to == fwd_to
+          send_message l.from_dpid_short, FlowMultipartRequest.new( 
+            cookie: 0,
+            out_port: OFPP_ANY,
+            out_group: OFPG_ANY,
+            match: match
+          )
+          reverse_match = match_reverse( match )
+          reverse_match.in_port = l.from_port_no
+          send_message l.from_dpid_short, FlowMultipartRequest.new( 
+            cookie: 0,
+            out_port: OFPP_ANY,
+            out_group: OFPG_ANY,
+            match: reverse_match
+          )
+          match.in_port = @data.ports.select( l.to_dpid_short ).find_by_name( l.to_port ).port_no if l.to_dpid_short > 0
+        end
+      end
+    end
+  end
+
+  def each_link link, &block
+    unless link.nil?
+      unless link.empty?
+        link.each do | l |
+          block.call l
+        end
+      end
+    end
   end
 
   def install_path path, message
