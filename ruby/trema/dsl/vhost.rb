@@ -94,6 +94,13 @@ module Trema
       def mac str
         @mac = str
       end
+
+      #
+      # Set allowed bandwidth
+      #
+      def bwidth bwidth
+        @bwidth = bwidth
+      end
     end
   end
 end
