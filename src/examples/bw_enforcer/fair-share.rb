@@ -6,36 +6,41 @@ class FairShare
   end
 
   def execute
-    link_capacity_per_flow = link_capacity / hosts.size
-    total_residual = 0
-    assigned_count = 0
-    fair_share link_capacity_per_flow, residual, assigned_count
+    fair_share
   end
 
-  def fair_share link_capacity_per_flow, residual, assigned_count
-    @hosts.each do | h |
-      if link_capacity_per_flow > h.demand
-        residual += link_capacity_per_flow - h.demand
-        h.assigned_demand = link_capacity_per_flow
+  def fair_share 
+    unused_bwidth = @link_capacity
+    begin
+      c = count_of_unsatisfied
+      break if c == 0
+      calc_demand = unused_bwidth / c.to_f
+      unused_bwidth = 0
+      @hosts.each do | h |
+puts "h is #{ h.inspect }"
+        if h.demand != h.assigned_demand
+          if h.demand - ( h.assigned_demand + calc_demand ) < 0
+            tmp = h.demand - h.assigned_demand
+            h.assigned_demand += tmp
+            unused_bwidth += calc_demand - tmp
+          else
+            h.assigned_demand += calc_demand
+          end
+          puts "unused_bwidth #{ unused_bwidth }, #{h.inspect}"
+        end
       end
-      if h.unsatified_demand == 0
-        h.unsatisfied_demand = h.demand - link_capacity_per_flow
-        h.assigned_demand = link_capacity_per_flow
-        assigned_count += 1
-      else
-        h.demand = h.unsatisfied_demand + residual
-      end
-      h.demand = h.assigned_demand
-    end
-    if residual > 0 
-      link_capacity_per_flow = residual / assigned_count
-      fair_share link_capacity_per_flow, residual, 0
-    end
+puts
+    end while unused_bwidth > 0
+  end
+
+  def count_of_unsatisfied 
+    @hosts.count { | h | h.demand != h.assigned_demand }
   end
 end
 
+
 hosts = (1..4).inject([]) do | res, element |
-  res << OpenStruct.new( demand: element * 2, assigned_demand: 0, unsatisfied_demand: 0 ) 
+  res << OpenStruct.new( demand: element * 2, assigned_demand: 0 ) 
   res
 end
 
