@@ -21,10 +21,7 @@
 module Trema
   module DSL
     class Link
-      attr_reader :peers
-      attr_reader :cost
-      attr_reader :bwidth
-
+      attr_reader :peers, :cost, :bwidth
 
       # cost value for link
       def initialize peer0, peer1, *extra_params
