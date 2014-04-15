@@ -177,8 +177,6 @@ puts "src = #{ src.name } dst = #{ dst }"
     end
   end
 
-
-
   def flow_multipart_reply datapath_id, message
     links = @data.links.select( datapath_id )
     puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }, #{ message.inspect }"

@@ -14,8 +14,8 @@ module LinkHelper
     paths.for_each_path do | src_dst_key, value |
       path = value.path
       if path.include? link.from
-        puts "about to reroute"
-        reroute_path path, value.pkt_in_message
+        puts "about to reroute #{ link.inspect }"
+        #reroute_path path, value.pkt_in_message
       end
     end
   end
@@ -25,9 +25,11 @@ module LinkHelper
   def adjust link
     if link.byte_count - link.prev_byte_count == 0 && link.byte_count != 0
       rate = ( link.byte_count * 8 ) * 100 / ( 60 * link.bwidth * 10**6 )
+      puts "rate decreased by #{ rate }"
       decrease link
     else
       rate = ( link.byte_count - link.prev_byte_count ) * 8 * 100 / ( 60 * link.bwidth * 10**6 )
+      puts "rate increased by #{ rate }"
       increase link
     end
   end
