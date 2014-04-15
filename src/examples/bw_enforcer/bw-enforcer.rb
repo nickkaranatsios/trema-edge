@@ -27,9 +27,12 @@ require 'json'
 require 'observer'
 require_relative 'dial-algorithm'
 require_relative 'data-delegator'
+require_relative 'link-helper'
 
 class BwEnforcer < Controller
   include Observable
+  include LinkHelper
+
   oneshot_timer_event :store_topology, 10
   periodic_timer_event :reroute_test, 60
 
@@ -174,42 +177,16 @@ puts "src = #{ src.name } dst = #{ dst }"
     end
   end
 
-  def update_flow_stats link
-    link.prev_packet_count = link.packet_count
-    link.prev_byte_count = link.byte_count
-    link.packet_count = part.packet_count
-    link.byte_count = part.byte_count
-  end
 
-  def update_link_cost link
-    unless link.bwidth.nil?
-      rate = ( link.byte_count - link.prev_byte_count ) / ( link.bwidth  * 10**6 ) * 100
-      adjust_link_cost link, rate
-    end
-  end
-
-  def adjust_link_rate link, rate
-    rate_intervals 
-    if rate != 0  
-    end
-  end
-
-  def process_flow_reply datapath_id, message
-    links = @data.links.select( datapath_id )
-    transaction_id = message.transaction_id
-    flow_multi_replies = message.parts
-    flow_multi_replies.each do | part |
-      link = links[ transaction_id ]
-      update_flow_stats link
-      puts "link info: #{ link.inspect }"
-      update_link_cost link
-    end
-  end
 
   def flow_multipart_reply datapath_id, message
     links = @data.links.select( datapath_id )
     puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }, #{ message.inspect }"
     puts
+    if message.parts.length > 0
+      process_flow_stats_reply datapath_id, message
+    end
+    return
     if message.parts.length > 0
       transaction_id = message.transaction_id
       flow_multi_replies = message.parts
@@ -244,6 +221,19 @@ puts "about to reroute"
   private
   ##############################################################################
 
+  def process_flow_stats_reply datapath_id, message
+    links = @data.links.select( datapath_id )
+    transaction_id = message.transaction_id
+    flow_multi_replies = message.parts
+
+    flow_multi_replies.each do | msg |
+      link = links[ transaction_id ]
+      update_flow_stats link, msg
+      puts "link info: #{ link.inspect }"
+      update_link_cost link
+      reroute_link link, @data.paths
+    end
+  end
 
   def to_svg
   end

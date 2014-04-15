@@ -100,7 +100,7 @@ class LinkHash
           packet_count: 0,
           prev_packet_count: 0,
           byte_count: 0,
-          prev_byte_count: 0,
+          prev_byte_count: 0
         )
         links << link_node
       end
