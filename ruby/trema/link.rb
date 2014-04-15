@@ -67,6 +67,12 @@ module Trema
     #
     attr_reader :cost
 
+    #
+    # A bandwidth constraint associated with link
+    #  @return [Float]
+    #
+    attr_reader :bwidth
+
 
     #
     # Creates a new Trema link from {DSL::Link}
@@ -79,6 +85,7 @@ module Trema
     def initialize stanza
       @stanza = stanza
       @cost = @stanza.cost
+      @bwidth = @stanza.bwidth unless @stanza.bwidth.nil?
       if real_eth?
         @name = real_eth
         @name_peer = nil

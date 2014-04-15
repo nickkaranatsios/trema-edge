@@ -6,7 +6,7 @@ class HostHash
 
   def setup config_hosts
     config_hosts.each do | h |
-      hosts[ h.mac ] = OpenStruct.new( name: h.name, mac: h.mac, ip: h.ip )
+      hosts[ h.mac ] = OpenStruct.new( name: h.name, mac: h.mac, ip: h.ip, demand: h.bwidth )
     end
   end
 
@@ -57,6 +57,64 @@ class PortHash
 end
 
 class LinkHash
+  attr_reader :links
+
+  def setup datapath_id, trema_link, switch_name, ports
+    links[ datapath_id ] ||= find_links( trema_link, switch_name, ports )
+  end
+
+  def select key
+    @last_link = @links[ key ]
+    @last_link
+  end
+
+  def each &block
+    @links.each do | k, v |
+      block.call k, v
+    end
+  end
+
+  def all
+    @links
+  end
+
+  private
+
+  def find_links trema_link, switch_name, ports
+    links = []
+    trema_link.each do | link |
+      peers = link.peers[ 0 ].split( ':' )
+      src = peers[ 0 ]
+      if src == switch_name 
+        link_node = OpenStruct.new( 
+          from: src,
+          from_dpid_short: src.to_i( 16 ),
+          from_port: link.name,
+          from_port_no: ports.select { | p | p.name == link.name }.first.port_no,
+          to: link.peers[ 1 ],
+          to_dpid_short: link.peers[ 1 ].to_i( 16 ),
+          to_port: link.name_peer,
+          config_cost: link.cost,
+          current_cost: link.cost,
+          bwidth: link.bwidth,
+          packet_count: 0,
+          prev_packet_count: 0,
+          byte_count: 0,
+          prev_byte_count: 0,
+        )
+        links << link_node
+      end
+    end
+    links
+  end
+
+  def links
+    @links ||= {}
+  end
+
+  def to_s
+    puts "links:#{ @links.inspect }"
+  end
 end
 
 class PathHash

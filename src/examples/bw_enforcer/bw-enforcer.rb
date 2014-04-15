@@ -31,7 +31,7 @@ require_relative 'data-delegator'
 class BwEnforcer < Controller
   include Observable
   oneshot_timer_event :store_topology, 10
-  oneshot_timer_event :reroute_test, 60
+  periodic_timer_event :reroute_test, 60
 
   def start
     @redis_client = Redis.new
@@ -61,9 +61,8 @@ class BwEnforcer < Controller
 puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
     switch = get_switch( datapath_id )
     unless switch.nil?
-      switches[ datapath_id ] ||= find_links( switch.name, message.parts[ 0 ].ports )
+      @data.links.setup datapath_id, Trema::Link, switch.name, message.parts[ 0 ].ports
     end
-    # find the links for the current switch
   end
 
   def json_str v
@@ -75,15 +74,15 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
   def store_topology
     @data.hosts.setup Trema::Host
     @data.hosts.to_s
-    @switches.each do | k, v |
+    @data.links.each do | k, v |
       puts "key is #{ k } value is #{ v.inspect }"
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
     end
+    puts
     changed
-    notify_observers self, @switches
-    @dial_algorithm.execute src = "e1", dst = "e2"
+    notify_observers self, @data.links.all
+    puts @data.links.all.inspect
     return
-    puts @switches.inspect
     svg_js=""
 #<!DOCTYPE html>
 #<html>
@@ -131,7 +130,9 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
           to: link.peers[ 1 ],
           to_dpid_short: link.peers[ 1 ].to_i( 16 ),
           to_port: link.name_peer,
-          cost: link.cost
+          config_cost: link.cost,
+          current_cost: link.cost,
+          bwidth: link.bwidth
         )
         links << link_node
       end
@@ -140,12 +141,19 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
   end
 
   def packet_in datapath_id, message
-    puts "packet in #{datapath_id}, #{message.inspect}"
+    puts "packet in #{datapath_id.to_s(16)}, #{message.inspect}"
     dst_host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
     dst = dst_for( dst_host_name )
     src = get_switch( datapath_id )
-    path = @dial_algorithm.execute src.name, dst
-    return if path.empty?
+puts "src = #{ src.name } dst = #{ dst }"
+    if src.name != dst
+      path = @dial_algorithm.execute src.name, dst
+      return if path.empty?
+    else
+      # handle the case where src and dst is the same.
+      path = []
+      path << src.name
+    end
     @data.paths.setup "#{ @data.hosts.select( message.packet_info.eth_src.to_s ).name }:#{ dst_host_name }", path, message
     path.push dst_host_name
     puts path.inspect
@@ -166,11 +174,70 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
     end
   end
 
+  def update_flow_stats link
+    link.prev_packet_count = link.packet_count
+    link.prev_byte_count = link.byte_count
+    link.packet_count = part.packet_count
+    link.byte_count = part.byte_count
+  end
+
+  def update_link_cost link
+    unless link.bwidth.nil?
+      rate = ( link.byte_count - link.prev_byte_count ) / ( link.bwidth  * 10**6 ) * 100
+      adjust_link_cost link, rate
+    end
+  end
+
+  def adjust_link_rate link, rate
+    rate_intervals 
+    if rate != 0  
+    end
+  end
+
+  def process_flow_reply datapath_id, message
+    links = @data.links.select( datapath_id )
+    transaction_id = message.transaction_id
+    flow_multi_replies = message.parts
+    flow_multi_replies.each do | part |
+      link = links[ transaction_id ]
+      update_flow_stats link
+      puts "link info: #{ link.inspect }"
+      update_link_cost link
+    end
+  end
+
   def flow_multipart_reply datapath_id, message
-    link = @switches[ datapath_id.to_s( 16 ) ]
-    puts "link info: #{ link.inspect }"
+    links = @data.links.select( datapath_id )
     puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }, #{ message.inspect }"
     puts
+    if message.parts.length > 0
+      transaction_id = message.transaction_id
+      flow_multi_replies = message.parts
+      flow_multi_replies.each do | part |
+        puts "packet count #{ part.packet_count } byte count #{ part.byte_count }"
+        link = links[ transaction_id ]
+        link.prev_packet_count = link.packet_count
+        link.prev_byte_count = link.byte_count
+        link.packet_count = part.packet_count
+        link.byte_count = part.byte_count
+        puts "link info: #{ link.inspect }"
+        unless link.bwidth.nil?
+          rate = ( link.packet_count - link.prev_packet_count ) / ( link.bwidth  * 10**6 ) * 100
+          # test 
+          # increment cost of link
+          if rate != 0
+            link.current_cost = link.current_cost + 1
+          end
+          @data.paths.for_each_path do | src_dst_key, value |
+            path = value.path
+            if path.include? link.from
+puts "about to reroute"
+              reroute_path path, value.pkt_in_message
+            end
+         end
+        end
+      end
+    end
   end
 
   ##############################################################################
@@ -181,17 +248,13 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
   def to_svg
   end
 
-  def switches
-    @switches ||= {}
-  end
-
   def get_switch datapath_id
     ds = "0x#{ datapath_id.to_s(16) }"
     Trema::TremaSwitch.instances.values.select { | sw | sw.dpid_short == ds }.first
   end
  
   def dst_for host
-    @switches.each do | k, v |
+    @data.links.each do | k, v |
       links = v
       edge = links.select { | l | l.to == host }
       unless edge.empty?
@@ -243,10 +306,13 @@ puts "packet out to #{datapath_id}, port #{port_no}"
       else
         fwd_to = path[ idx + 1 ]
       end
-      link = @switches[ from_sw.to_i( 16 ) ]
+      link = @data.links.select( from_sw.to_i( 16 ) )
       each_link link do | l |
         if l.from == from_sw && l.to == fwd_to
+          transaction_id = link.index( l )
+puts "transaction id #{ transaction_id }"
           send_message l.from_dpid_short, FlowMultipartRequest.new( 
+            transaction_id: transaction_id,
             cookie: 0,
             out_port: OFPP_ANY,
             out_group: OFPG_ANY,
@@ -255,6 +321,7 @@ puts "packet out to #{datapath_id}, port #{port_no}"
           reverse_match = match_reverse( match )
           reverse_match.in_port = l.from_port_no
           send_message l.from_dpid_short, FlowMultipartRequest.new( 
+            transaction_id: transaction_id,
             cookie: 0,
             out_port: OFPP_ANY,
             out_group: OFPG_ANY,
@@ -288,7 +355,7 @@ puts match.inspect
       else
         fwd_to = path[ idx + 1 ]
       end
-      link = @switches[ from_sw.to_i( 16 ) ]
+      link = @data.links.select( from_sw.to_i( 16 ) )
       unless link.nil?
         unless link.empty?
           link.each do | l |
@@ -325,7 +392,7 @@ puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port
       else
         fwd_to = path[ idx + 1 ]
       end
-      link = @switches[ from_sw.to_i( 16 ) ]
+      link = @data.links.select( from_sw.to_i( 16 ) )
       unless link.nil?
         unless link.empty?
           link.each do | l |

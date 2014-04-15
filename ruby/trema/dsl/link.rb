@@ -23,14 +23,18 @@ module Trema
     class Link
       attr_reader :peers
       attr_reader :cost
+      attr_reader :bwidth
 
 
       # cost value for link
-      def initialize peer0, peer1, *cost
+      def initialize peer0, peer1, *extra_params
         @peers = [ peer0, peer1 ]
         @cost = 0
-        unless cost.empty?
-          @cost = cost.first
+        unless extra_params.empty?
+          @cost = extra_params.first
+          if extra_params.length > 1
+            @bwidth = extra_params.last
+          end
         end
       end
     end

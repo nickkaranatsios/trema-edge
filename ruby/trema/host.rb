@@ -133,6 +133,18 @@ module Trema
       end
     end
 
+    #
+    # Returns demand bandwidth of virtual host
+    #
+    def bwidth
+      stanza_bwidth = @stanza[ :bwidth ]
+      if stanza_bwidth.nil?
+        0.0
+      else
+        stanza_bwidth
+      end
+    end
+
 
     #
     # Runs a host process

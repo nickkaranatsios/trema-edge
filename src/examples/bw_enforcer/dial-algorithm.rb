@@ -53,12 +53,12 @@ class DialAlgorithm
 
   def traverse links, link_costs, dl, pred
     links.each do | link |
-      next if link.cost == 0
+      next if link.config_cost == 0
       cost = link_costs[ link.from ]
-      new_cost = cost + link.cost
+      new_cost = cost + link.current_cost
       if link_costs[ link.to ] > new_cost
         #puts "new cost #{ new_cost } for #{ link.to }"
-        link.cost = new_cost
+        link.current_cost = new_cost
         pred[ link.to ] = link.from
         dl[ new_cost ] = link.to.to_i( 16 )
         link_costs[ link.to ] = new_cost
