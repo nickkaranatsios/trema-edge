@@ -37,7 +37,8 @@ $(function($, window) {
         y: start_y,
         events: {
           click: function() {
-            get_node_info(item);
+            // window.console.log(this);
+            get_node_info(this, item);
           }
         }
       }).attach();
@@ -46,8 +47,8 @@ $(function($, window) {
     $(nodes).each(function(i, item) {
       var links = jQuery.parseJSON(data[item]);
       $(links).each(function(j, link) {
-        from = link["from"];
-        to = link["to"];
+        from = link['from'];
+        to = link['to'];
         if ( from in h_nodes && to in h_nodes ) {
           new Segment({
             h: 5,
@@ -60,16 +61,47 @@ $(function($, window) {
     });
   });
 
-  function get_node_info(key) {
+  function get_node_info(node, key) {
     $.ajax({
       type: 'PUT',
       dataType: 'json',
       url: '/topology/' + key,
       success: function(data) {
-        window.console.log("event data");
+        display_node_info(data);
+        window.console.log("event data ")
+        window.console.log(node);
+        window.console.log("position ")
+        window.console.log(node.el.position());
+        var node_data="Stats:</br>";
+        $(node.segments).each(function(i, seg) {
+          dst_node = seg.destination;
+          if (node.title == dst_node.title) {
+            return;
+          }
+          pkts = pkt_count(data, dst_node.title);
+          //pkts = 1;
+          node_data += node.title + "=>" + dst_node.title + ":pkt_count(" + pkts + ")</br>";
+        });
+        node.el.append('<h5>' + node_data + '</h5>');
         window.console.log(data);
       }
     });
+  }
+
+  function pkt_count(data, to) {
+    var pkts = "";
+    var links = jQuery.parseJSON(data);
+    $(links).each(function(i, link) {
+      if (link['to'] == to) {
+        window.console.log(link['to'] == to);
+        pkts = link['packet_count'];
+      }
+    });
+    return pkts;
+  }
+
+  function display_node_info(data) {
+    window.console.log(Node);
   }
   
 }(jQuery, window));
