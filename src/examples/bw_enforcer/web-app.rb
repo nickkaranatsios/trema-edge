@@ -25,11 +25,32 @@ class DemoServlet < Sinatra::Base
     response[ 'Content-Type' ] = 'text/plain'
     body = 'hello world'
   end
+
+  get '/topology' do
+    topology.to_json
+  end
+
+  put '/topology/*' do | key |
+    h = topology
+    h[ key ].to_json
+  end
   
   configure( :delevelopment ) do | c |
     require "sinatra/reloader"
     c.also_reload "*.rb"
     set :public_folder, "./public"
+  end
+
+  private
+
+  def topology( h={} )
+    keys = @redis_client.hkeys( 'topo' )
+    h[ 'topo-keys' ] = keys
+    keys.each do | k |
+      v = @redis_client.hget( 'topo', k )
+      h[ k ] = v
+    end
+    h
   end
 end
     
