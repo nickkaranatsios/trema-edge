@@ -1,2 +1,2 @@
-require_relative './web-app'
+require './web-app'
 run DemoServlet.new 

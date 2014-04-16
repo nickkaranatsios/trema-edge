@@ -34,7 +34,7 @@ class BwEnforcer < Controller
   include LinkHelper
 
   oneshot_timer_event :store_topology, 10
-  periodic_timer_event :reroute_test, 60
+#  periodic_timer_event :reroute_test, 60
 
   def start
     @redis_client = Redis.new
@@ -148,7 +148,7 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
     dst_host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
     dst = dst_for( dst_host_name )
     src = get_switch( datapath_id )
-puts "src = #{ src.name } dst = #{ dst }"
+    puts "src = #{ src.name } dst = #{ dst }"
     if src.name != dst
       path = @dial_algorithm.execute src.name, dst
       return if path.empty?
@@ -161,6 +161,7 @@ puts "src = #{ src.name } dst = #{ dst }"
     path.push dst_host_name
     puts path.inspect
     install_path path, message
+    entrance_cost path, @data.links.all
   end
 
   def reroute_test
@@ -180,38 +181,8 @@ puts "src = #{ src.name } dst = #{ dst }"
   def flow_multipart_reply datapath_id, message
     links = @data.links.select( datapath_id )
     puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }, #{ message.inspect }"
-    puts
     if message.parts.length > 0
       process_flow_stats_reply datapath_id, message
-    end
-    return
-    if message.parts.length > 0
-      transaction_id = message.transaction_id
-      flow_multi_replies = message.parts
-      flow_multi_replies.each do | part |
-        puts "packet count #{ part.packet_count } byte count #{ part.byte_count }"
-        link = links[ transaction_id ]
-        link.prev_packet_count = link.packet_count
-        link.prev_byte_count = link.byte_count
-        link.packet_count = part.packet_count
-        link.byte_count = part.byte_count
-        puts "link info: #{ link.inspect }"
-        unless link.bwidth.nil?
-          rate = ( link.packet_count - link.prev_packet_count ) / ( link.bwidth  * 10**6 ) * 100
-          # test 
-          # increment cost of link
-          if rate != 0
-            link.current_cost = link.current_cost + 1
-          end
-          @data.paths.for_each_path do | src_dst_key, value |
-            path = value.path
-            if path.include? link.from
-puts "about to reroute"
-              reroute_path path, value.pkt_in_message
-            end
-         end
-        end
-      end
     end
   end
 
@@ -227,9 +198,12 @@ puts "about to reroute"
     flow_multi_replies.each do | msg |
       link = links[ transaction_id ]
       update_flow_stats link, msg
+      unless link.bwidth.nil?
+        update_link_cost link, msg
+        reroute_link( link, @data.paths ) if link_adjusted?
+      end
       puts "link info: #{ link.inspect }"
-      update_link_cost link
-      reroute_link link, @data.paths
+      puts
     end
   end
 

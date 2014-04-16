@@ -11,6 +11,7 @@ class DemoServlet < Sinatra::Base
   end
 
   get '/' do
+    redirect '/index.html'
     keys = @redis_client.hkeys( "topo" )
     keys.each do | k |
       v = @redis_client.hget( "topo", k )

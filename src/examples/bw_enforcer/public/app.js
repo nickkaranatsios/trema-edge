@@ -9,6 +9,16 @@
     h: 50
   };
 
+  function info(text) {
+    $('#info-text').text(text);
+  }   
+    
+  $('#start').click(function(e) {
+    e.preventDefault();
+    info("Reading topology");
+    $('#start').attr('disabled', 'disabled');
+  });
+
   function initialize() {
     stage = $('#stage');
 
