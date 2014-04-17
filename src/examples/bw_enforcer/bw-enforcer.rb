@@ -25,6 +25,7 @@ require 'redis'
 require 'trema/exact-match'
 require 'json'
 require 'observer'
+require 'pp'
 require_relative 'dial-algorithm'
 require_relative 'data-delegator'
 require_relative 'link-helper'
@@ -61,7 +62,8 @@ class BwEnforcer < Controller
     @data.ports.setup datapath_id, message.parts[ 0 ].ports
     @data.ports.to_s
     # at the moment assume that there are 0 parts in message
-    puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
+    puts "port desc multipart reply from datapath_id #{ datapath_id.to_s( 16 ) }"
+    pp message.parts[ 0 ].ports
     switch = get_switch( datapath_id )
     unless switch.nil?
       @data.links.setup datapath_id, Trema::Link, switch.name, message.parts[ 0 ].ports
@@ -75,7 +77,7 @@ class BwEnforcer < Controller
     redis_update_topology
     changed
     notify_observers self, @data.links.all
-    puts @data.links.all.inspect
+    pp @data.links.all
   end
 
   def packet_in datapath_id, message
@@ -94,7 +96,7 @@ class BwEnforcer < Controller
     end
     @data.paths.setup "#{ @data.hosts.select( message.packet_info.eth_src.to_s ).name }:#{ dst_host_name }", path, message
     path.push dst_host_name
-    puts path.inspect
+    pp path
     install_path path, message
     entrance_cost path, @data.links.all
   end
@@ -128,7 +130,7 @@ class BwEnforcer < Controller
 
   def redis_update_topology
     @data.links.each do | k, v |
-      puts "key is #{ k } value is #{ v.inspect }"
+      pp v
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
       v.each { | each | each.packet_count = 0; each.byte_count = 0 }
     end
@@ -183,7 +185,7 @@ class BwEnforcer < Controller
         instructions: [ ins ]
       )
     elsif command == :del
-puts "sending a flow mod delete #{ match } #{ match.inspect }"
+      puts "sending a flow mod delete #{ match } #{ match.inspect }"
       send_flow_mod_del(
         datapath_id,
         match: match,

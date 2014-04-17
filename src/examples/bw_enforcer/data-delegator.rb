@@ -1,5 +1,6 @@
 require 'delegate'
 require 'ostruct'
+require 'pp'
 
 class HostHash
   attr_reader :hosts
@@ -15,7 +16,7 @@ class HostHash
   end
 
   def to_s
-    puts "hosts: #{ @hosts.inspect }"
+    pp @hosts
   end
   private
 
@@ -46,7 +47,7 @@ class PortHash
   end
 
   def to_s
-    puts "ports: #{ @ports.inspect }"
+    pp @ports
   end
 
   private 
@@ -113,7 +114,7 @@ class LinkHash
   end
 
   def to_s
-    puts "links:#{ @links.inspect }"
+    pp @links
   end
 end
 

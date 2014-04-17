@@ -23,6 +23,20 @@ body {
   z-index: 2;
   -webkit-backface-visibility: hidden;
 }
+.host {
+  -webkit-border-radius: 24px;
+  -moz-border-radius: 24px;
+  border-radius: 24px;
+  background: #3a5443;
+  border: 2px solid #FFF;
+  box-shadow: 0 0 2px #888;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  -webkit-backface-visibility: hidden;
+}
+
 .node h4 {
   color: #067195;
   text-shadow: -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff;
@@ -35,6 +49,17 @@ body {
   font-size: 14px;
 }
 
+.host h4 {
+  color: #067195;
+  text-shadow: -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  width: 30px;
+  left: 30px;
+  bottom: 0;
+  font-size: 14px;
+}
 .node h5 {
   color: rgb(63,153,226);
   margin: 0;
@@ -54,6 +79,12 @@ body {
 }
 .node:hover {
   cursor: pointer;
+}
+.host:hover {
+  cursor: pointer;
+}
+.host.dragging {
+  z-index: 99;
 }
 .node.dragging {
   z-index: 99;

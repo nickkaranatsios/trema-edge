@@ -1,4 +1,5 @@
 require 'ostruct'
+require 'pp'
 
 class FairShare
   def initialize hosts, link_capacity
@@ -17,7 +18,6 @@ class FairShare
       calc_demand = unused_bwidth / c.to_f
       unused_bwidth = 0
       @hosts.each do | h |
-puts "h is #{ h.inspect }"
         if h.demand != h.assigned_demand
           if h.demand - ( h.assigned_demand + calc_demand ) < 0
             tmp = h.demand - h.assigned_demand
@@ -26,24 +26,34 @@ puts "h is #{ h.inspect }"
           else
             h.assigned_demand += calc_demand
           end
-          puts "unused_bwidth #{ unused_bwidth }, #{h.inspect}"
+          puts "unused_bwidth #{ unused_bwidth }, #{ h.inspect }"
         end
       end
-puts
     end while unused_bwidth > 0
   end
 
   def count_of_unsatisfied 
     @hosts.count { | h | h.demand != h.assigned_demand }
   end
+
+  def to_s
+    pp @hosts
+  end
 end
 
 
-hosts = (1..4).inject([]) do | res, element |
+hosts = (1..5).inject([]) do | res, element |
   res << OpenStruct.new( demand: element * 2, assigned_demand: 0 ) 
   res
 end
 
-fs = FairShare.new( hosts, 10 )
+hosts[0].demand = 2.0
+hosts[1].demand = 4.0
+hosts[2].demand = 2.0
+hosts[3].demand = 6.0
+hosts[4].demand = 3.0
+
+fs = FairShare.new( hosts, 15 )
 fs.execute
+fs.to_s
 

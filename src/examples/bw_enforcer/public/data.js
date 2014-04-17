@@ -41,6 +41,7 @@ $(function($, window) {
       window.console.log(item);
       window.console.log(data[item]);
       h_nodes[item] = new Node({
+        type: 'node',
         title: item,
         stage: stage,
         w: NODE_DIMENSIONS.w,
@@ -54,7 +55,7 @@ $(function($, window) {
           }
         }
       }).attach();
-      start_x += 100
+      start_x += 100;
     });
     $(nodes).each(function(i, item) {
       var links = jQuery.parseJSON(data[item]);
@@ -63,10 +64,29 @@ $(function($, window) {
         to = link['to'];
         if ( from in h_nodes && to in h_nodes ) {
           new Segment({
+            type: 'segment',
             h: 5,
             stage: stage,
             origin: h_nodes[from],
             destination: h_nodes[to] 
+          }).attach();
+        } else {
+          host_node = new Node({
+            type: 'host',
+            title: to,
+            stage: stage,
+            w: NODE_DIMENSIONS.w / 2,
+            h: NODE_DIMENSIONS.h / 2,
+            x: start_x,
+            y: start_y
+          }).attach();
+          start_x += 100;
+          new Segment({
+            type: 'segment',
+            h: 5,
+            stage: stage,
+            origin: h_nodes[from],
+            destination: host_node
           }).attach();
         }
       });

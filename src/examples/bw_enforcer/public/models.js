@@ -110,7 +110,6 @@
    * Possible Options: Same as Particle.
    */
   function Node(opts) {
-    opts.type = 'node';
     Particle.prototype.constructor.call(this, opts);
     this.el.on({
       mousedown: this.onDragStart.bind(this),
@@ -229,7 +228,6 @@
    * }
    */
   function Segment(opts) {
-    opts.type = 'segment';
     Particle.prototype.constructor.call(this, opts);
 
     this.el.css({ width: this.dimensions.w, height: this.dimensions.h });
