@@ -16,17 +16,29 @@ $(function($, window) {
     w: 50,
     h: 50
   };
+  var h_nodes = {}
+
+  /*
+  $(document).ready(function() {
+    var timer = setInterval(update_stats, 30000);
+
+    function update_stats() {
+      window.console.log("periodic update stats is called");
+      for (var key in h_nodes) {
+        window.console.log(key);
+        update_node_info(h_nodes[key], key);
+      }
+    }
+  });
+  */
 
   $.getJSON('/topology', function(data) {
     var nodes = data['topo-keys']
     var start_x = 200, start_y = 200
-    var h_nodes = {}
 
     stage = $('#stage');
     $(nodes).each(function(i, item) {
       window.console.log(item);
-      var links = jQuery.parseJSON(data[item]);
-      window.console.log(Object.prototype.toString.call(links));
       window.console.log(data[item]);
       h_nodes[item] = new Node({
         title: item,
@@ -38,7 +50,7 @@ $(function($, window) {
         events: {
           click: function() {
             // window.console.log(this);
-            get_node_info(this, item);
+            update_node_info(this, item);
           }
         }
       }).attach();
@@ -61,7 +73,7 @@ $(function($, window) {
     });
   });
 
-  function get_node_info(node, key) {
+  function update_node_info(node, key) {
     $.ajax({
       type: 'PUT',
       dataType: 'json',
@@ -79,10 +91,16 @@ $(function($, window) {
             return;
           }
           pkts = pkt_count(data, dst_node.title);
-          //pkts = 1;
-          node_data += node.title + "=>" + dst_node.title + ":pkt_count(" + pkts + ")</br>";
+          node_data += node.title + "=>" + dst_node.title + ":pkt_count(" + pkts + ") cost(" + link_cost(data, dst_node.title) + ")</br>";
         });
-        node.el.append('<h5>' + node_data + '</h5>');
+        h5_el = node.el.find('h5');
+        if (h5_el.length != 0 ) {
+          h5_el.html("");
+          h5_el.html(node_data);
+        }
+        else {
+          node.el.append('<h5>' + node_data + '</h5>');
+        }
         window.console.log(data);
       }
     });
@@ -93,12 +111,23 @@ $(function($, window) {
     var links = jQuery.parseJSON(data);
     $(links).each(function(i, link) {
       if (link['to'] == to) {
-        window.console.log(link['to'] == to);
         pkts = link['packet_count'];
       }
     });
     return pkts;
   }
+
+  function link_cost(data, to) {
+    var str = ""
+    var links = jQuery.parseJSON(data);
+    $(links).each(function(i, link) {
+      if (link['to'] == to) {
+        str = link['cost'];
+      }
+    });
+    return str;
+  }
+
 
   function display_node_info(data) {
     window.console.log(Node);

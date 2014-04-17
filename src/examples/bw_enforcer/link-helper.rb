@@ -23,10 +23,21 @@ puts "l is #{ l.inspect }"
   end
 
   def update_flow_stats link, msg
-    link.prev_packet_count = link.packet_count
-    link.prev_byte_count = link.byte_count
-    link.packet_count = [ msg.packet_count, link.packet_count ].max
-    link.byte_count = [ msg.byte_count, link.byte_count ].max
+    link.packet_count += msg.packet_count
+    link.byte_count += msg.byte_count
+  end
+
+  def adjust_link_capacity link
+    if link.packet_count < link.prev_packet_count
+      link.packet_count = link.prev_packet_count
+    else
+      link.prev_packet_count = link.packet_count
+    end
+    if link.byte_count < link.prev_byte_count
+      link.byte_count = link.prev_byte_count
+    else
+      link.prev_byte_count = link.byte_count
+    end
   end
 
   def reroute_link link, paths

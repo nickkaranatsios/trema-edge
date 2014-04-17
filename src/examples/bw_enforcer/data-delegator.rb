@@ -127,6 +127,7 @@ class PathHash
   end
 
   def for_each_path &block
+    return if @paths.nil?
     @paths.each do | k, v |
       block.call k, v
     end

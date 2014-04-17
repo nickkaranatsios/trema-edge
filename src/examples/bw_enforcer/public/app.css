@@ -8,7 +8,7 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: helvetica, san-serif;
+  font-family: rotis, san-serif;
 }
 .node {
   -webkit-border-radius: 48px;
@@ -32,11 +32,11 @@ body {
   width: 56px;
   left: 56px;
   bottom: 0;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .node h5 {
-  color: black;
+  color: rgb(63,153,226);
   margin: 0;
   padding: 0;
   position:absolute;
@@ -74,5 +74,5 @@ body {
 }
 .segment .endpoint {
   position: absolute;
-  top: -9px;
+  top: 0px;
 }

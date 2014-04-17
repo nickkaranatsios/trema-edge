@@ -34,7 +34,7 @@ class BwEnforcer < Controller
   include LinkHelper
 
   oneshot_timer_event :store_topology, 10
-#  periodic_timer_event :reroute_test, 60
+  periodic_timer_event :collect_stats, 30
 
   def start
     @redis_client = Redis.new
@@ -61,86 +61,21 @@ class BwEnforcer < Controller
     @data.ports.setup datapath_id, message.parts[ 0 ].ports
     @data.ports.to_s
     # at the moment assume that there are 0 parts in message
-puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
+    puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
     switch = get_switch( datapath_id )
     unless switch.nil?
       @data.links.setup datapath_id, Trema::Link, switch.name, message.parts[ 0 ].ports
     end
   end
 
-  def json_str v
-    str = "["
-    str += v.map { |x| x.to_h.to_json }.join( ',' )
-    str << "]"
-  end
 
   def store_topology
     @data.hosts.setup Trema::Host
     @data.hosts.to_s
-    @data.links.each do | k, v |
-      puts "key is #{ k } value is #{ v.inspect }"
-      @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
-    end
-    puts
+    redis_update_topology
     changed
     notify_observers self, @data.links.all
     puts @data.links.all.inspect
-    return
-    svg_js=""
-#<!DOCTYPE html>
-#<html>
-#<body>
-#
-#<svg width="400" height="110">
-#  <rect width="20" height="20" style="fill:rgb(0,0,255);stroke-width:3;stroke:rgb(0,0,0)"/>
-# <line x1="20" y1="10" x2="50" y2="10" style="stroke:rgb(255,0,0);stroke-width:2" />
-#  Sorry, your browser does not support inline SVG.  
-#</svg>
-# 
-#</body>
-#</html>
-    svg_js += <<-EOT
-      <!DOCTYPE html>
-      <html>
-      <body>
-      <svg width="100%" height="100%">
-    EOT
-    @switches.each do | key, value |
-      svg_js += <<-EOT
-        <rect width="50" height="50", x="100", y="200"/>
-      EOT
-      puts  "0x#{ key.to_s(16) }, ports #{ value.inspect }"
-      svg_js += <<-EOT
-      EOT
-      svg_js += <<-EOT
-        "0x#{ key.to_s(16) }, ports #{ value.inspect }"
-      EOT
-    end
-    puts svg_js
-  end
-
-  def find_links switch_name, ports
-    links = []
-    Trema::Link.each do | link |
-      peers = link.peers[ 0 ].split( ':' )
-      src = peers[ 0 ]
-      if src == switch_name 
-        link_node = OpenStruct.new( 
-          from: src,
-          from_dpid_short: src.to_i( 16 ),
-          from_port: link.name,
-          from_port_no: ports.select { | p | p.name == link.name }.first.port_no,
-          to: link.peers[ 1 ],
-          to_dpid_short: link.peers[ 1 ].to_i( 16 ),
-          to_port: link.name_peer,
-          config_cost: link.cost,
-          current_cost: link.cost,
-          bwidth: link.bwidth
-        )
-        links << link_node
-      end
-    end
-    links
   end
 
   def packet_in datapath_id, message
@@ -164,7 +99,7 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
     entrance_cost path, @data.links.all
   end
 
-  def reroute_test
+  def collect_stats
     @data.paths.for_each_path do | src_dst_key, value |
       items = src_dst_key.split( ':' )
       src_host_name = items[ 0 ]
@@ -176,11 +111,12 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
       #reroute_path path, message
       send_flow_stats path, message
     end
+    redis_update_topology
   end
 
   def flow_multipart_reply datapath_id, message
     links = @data.links.select( datapath_id )
-    puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }, #{ message.inspect }"
+    puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }, #{ message.inspect }" if datapath_id == 193
     if message.parts.length > 0
       process_flow_stats_reply datapath_id, message
     end
@@ -189,6 +125,20 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
   ##############################################################################
   private
   ##############################################################################
+
+  def redis_update_topology
+    @data.links.each do | k, v |
+      puts "key is #{ k } value is #{ v.inspect }"
+      @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
+      v.each { | each | each.packet_count = 0; each.byte_count = 0 }
+    end
+  end
+
+  def json_str v
+    str = "["
+    str += v.map { |x| x.to_h.to_json }.join( ',' )
+    str << "]"
+  end
 
   def process_flow_stats_reply datapath_id, message
     links = @data.links.select( datapath_id )
@@ -199,15 +149,12 @@ puts "datapath_id #{ datapath_id.to_s( 16 ) } #{ message.parts[ 0 ].ports }"
       link = links[ transaction_id ]
       update_flow_stats link, msg
       unless link.bwidth.nil?
-        update_link_cost link, msg
-        reroute_link( link, @data.paths ) if link_adjusted?
+        #update_link_cost link, msg
+        #reroute_link( link, @data.paths ) if link_adjusted?
       end
-      puts "link info: #{ link.inspect }"
-      puts
+      #puts "link info: #{ link.inspect }"
+      #puts
     end
-  end
-
-  def to_svg
   end
 
   def get_switch datapath_id
@@ -271,6 +218,7 @@ puts "packet out to #{datapath_id}, port #{port_no}"
       link = @data.links.select( from_sw.to_i( 16 ) )
       each_link link do | l |
         if l.from == from_sw && l.to == fwd_to
+          adjust_link_capacity l
           transaction_id = link.index( l )
 puts "transaction id #{ transaction_id }"
           send_message l.from_dpid_short, FlowMultipartRequest.new( 

@@ -234,7 +234,7 @@
 
     this.el.css({ width: this.dimensions.w, height: this.dimensions.h });
 
-    /* Add a canvas element to represent an arrowhead, and
+    /* Add a canvas element to represent an arrowhead, if required and
        save references to the element and drawing context. */
     this.el.append('<canvas class="endpoint"></canvas>');
     this.canvas = {
@@ -245,14 +245,24 @@
 
     /* Set the canvas width and height in proportion
        to the line dimensions */
+    /*
     this.canvas.raw.height = this.dimensions.h + 10;
     this.canvas.raw.width = Math.ceil((this.dimensions.h + 10) /
                                       Math.sin(40 * DEG2RAD));
+    */
+
+    /*
+     * delete the arrowhead
+     */
+    this.canvas.raw.height = this.dimensions.h;
+    this.canvas.raw.width = this.dimensions.w;
 
     /* Place the canvas at the end of the line element */
+    /*
     this.canvas.el.css({
       right: 1 + this.canvas.raw.width * -1
     });
+    */
 
     /* Save references to the origin and destination Nodes */
     this.origin = opts.origin;
