@@ -2,22 +2,49 @@ require 'ostruct'
 require 'pp'
 
 class FairShare
-  def initialize hosts, link_capacity
-    @hosts, @link_capacity = hosts, link_capacity
+  def initialize hosts, edge_to_core_links
+    @hosts, @edge_to_core_links = hosts, edge_to_core_links
   end
 
   def execute
-    fair_share
+    results = []
+    @edge_to_core_links.each do | element |
+      hosts_to_compute = deep_clone( @hosts )
+      capacity = element
+      results << fair_share( hosts_to_compute, capacity )
+    end
+    pp results
+    results.take( 1 ).each_with_index do | item, i |
+      item.each do | h |
+        h.edge_to_core = @edge_to_core_links[ i ]
+        if h.demand != h.assigned_demand
+          new_host, idx = choose_best( results, h )
+          unless new_host.nil?
+            h.edge_to_core = @edge_to_core_links[ idx ]
+            h.assigned_demand = new_host.assigned_demand
+          end
+        end
+      end
+    end
+    pp results
   end
 
-  def fair_share 
-    unused_bwidth = @link_capacity
+  def choose_best( results, h )
+    results.each_with_index do | item, i |
+      best_host = item.detect { | each | each.id == h.id && each.assigned_demand > h.assigned_demand }
+      return best_host,i unless best_host.nil?
+    end
+    return nil, 0
+  end
+
+  def fair_share hosts, capacity
+    unused_bwidth = capacity
     begin
-      c = count_of_unsatisfied
+      c = count_of_unsatisfied( hosts )
       break if c == 0
       calc_demand = unused_bwidth / c.to_f
       unused_bwidth = 0
-      @hosts.each do | h |
+      hosts.each do | h |
         if h.demand != h.assigned_demand
           if h.demand - ( h.assigned_demand + calc_demand ) < 0
             tmp = h.demand - h.assigned_demand
@@ -30,20 +57,29 @@ class FairShare
         end
       end
     end while unused_bwidth > 0
+    hosts
   end
 
-  def count_of_unsatisfied 
-    @hosts.count { | h | h.demand != h.assigned_demand }
+  def count_of_unsatisfied  hosts
+    hosts.count { | h | h.demand != h.assigned_demand }
   end
 
   def to_s
     pp @hosts
   end
+
+  private
+  def deep_clone obj
+    to_obj = obj.inject( [] ) do | res, o |
+      res << o.clone
+      res
+    end
+  end
 end
 
 
 hosts = (1..5).inject([]) do | res, element |
-  res << OpenStruct.new( demand: element * 2, assigned_demand: 0 ) 
+  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0 ) 
   res
 end
 
@@ -53,7 +89,7 @@ hosts[2].demand = 2.0
 hosts[3].demand = 6.0
 hosts[4].demand = 3.0
 
-fs = FairShare.new( hosts, 15 )
+fs = FairShare.new( hosts, [ 15, 16 ] )
 fs.execute
-fs.to_s
+#fs.to_s
 
