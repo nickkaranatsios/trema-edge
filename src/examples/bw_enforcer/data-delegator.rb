@@ -7,12 +7,21 @@ class HostHash
 
   def setup config_hosts
     config_hosts.each do | h |
-      hosts[ h.mac ] = OpenStruct.new( name: h.name, mac: h.mac, ip: h.ip, demand: h.bwidth )
+      hosts[ h.mac ] = OpenStruct.new( 
+        name: h.name, 
+        mac: h.mac, 
+        ip: h.ip, 
+        demand: h.bwidth,
+        assigned_demand: 0 )
     end
   end
 
   def select key
     @last_host = @hosts[ key ]
+  end
+
+  def all
+    @hosts
   end
 
   def to_s

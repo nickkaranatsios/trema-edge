@@ -114,7 +114,8 @@
     this.el.on({
       mousedown: this.onDragStart.bind(this),
       mouseup: this.onDragEnd.bind(this),
-      click: this.onClick.bind(this)
+      click: this.onClick.bind(this),
+      dblclick: this.onDblClick.bind(this)
     });
     /**
      * Set up a list of segments that can be
@@ -161,6 +162,11 @@
    */
   Node.prototype.onClick = function(e) {
     (this.events.click || this.events.base).call(this);
+    return false;
+  };
+  
+  Node.prototype.onDblClick = function(e) {
+    (this.events.dblclick || this.events.base).call(this);
     return false;
   };
 

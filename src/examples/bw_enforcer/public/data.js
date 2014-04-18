@@ -17,6 +17,8 @@ $(function($, window) {
     h: 50
   };
   var h_nodes = {}
+  var bwidth = $( '#bandwidth' );
+  var allFields = $( [] ).add( bwidth ); 
 
   /*
   $(document).ready(function() {
@@ -31,6 +33,7 @@ $(function($, window) {
     }
   });
   */
+  
 
   $.getJSON('/topology', function(data) {
     var nodes = data['topo-keys']
@@ -78,7 +81,13 @@ $(function($, window) {
             w: NODE_DIMENSIONS.w / 2,
             h: NODE_DIMENSIONS.h / 2,
             x: start_x,
-            y: start_y
+            y: start_y,
+            events: {
+              dblclick: function() {
+                // window.console.log(this);
+                request_host_info(this, to);
+              }
+            }
           }).attach();
           start_x += 100;
           new Segment({
@@ -126,6 +135,12 @@ $(function($, window) {
     });
   }
 
+  function request_host_info(host, name) {
+    window.console.log(host);
+    window.console.log(name);
+    $( '#host-dialog-form' ).dialog( "open" );
+  }
+
   function pkt_count(data, to) {
     var pkts = "";
     var links = jQuery.parseJSON(data);
@@ -152,5 +167,22 @@ $(function($, window) {
   function display_node_info(data) {
     window.console.log(Node);
   }
+
+  $( '#host-dialog-form' ).dialog({
+    autoOpen: false,
+    height: 200,
+    width: 250,
+    modal: true,
+    buttons: {
+      "Change Bandwidth": function() {
+      },
+      Cancel:function() {
+        $( this ).dialog( "close" );
+      }
+    },
+    close: function() {
+      allFields.val( "" ).removeClass( "ui-state-error" );
+    }
+  });
   
 }(jQuery, window));

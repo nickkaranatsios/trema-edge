@@ -1,41 +1,30 @@
 require 'ostruct'
 require 'pp'
 
-class FairShare
-  def initialize hosts, edge_to_core_links
-    @hosts, @edge_to_core_links = hosts, edge_to_core_links
-  end
-
-  def execute
+module FairShare
+  def compute hosts, edge_to_core_links
     results = []
-    @edge_to_core_links.each do | element |
-      hosts_to_compute = deep_clone( @hosts )
-      capacity = element
+    edge_to_core_links.each do | link |
+      hosts_to_compute = deep_clone( hosts )
+      capacity = link.bwidth
       results << fair_share( hosts_to_compute, capacity )
     end
-    pp results
+    #pp results
     results.take( 1 ).each_with_index do | item, i |
       item.each do | h |
-        h.edge_to_core = @edge_to_core_links[ i ]
+        h.edge_to_core = edge_to_core_links[ i ]
         if h.demand != h.assigned_demand
           new_host, idx = choose_best( results, h )
           unless new_host.nil?
-            h.edge_to_core = @edge_to_core_links[ idx ]
+            h.edge_to_core = edge_to_core_links[ idx ]
             h.assigned_demand = new_host.assigned_demand
           end
         end
       end
     end
-    pp results
+    results[ 0 ]
   end
 
-  def choose_best( results, h )
-    results.each_with_index do | item, i |
-      best_host = item.detect { | each | each.id == h.id && each.assigned_demand > h.assigned_demand }
-      return best_host,i unless best_host.nil?
-    end
-    return nil, 0
-  end
 
   def fair_share hosts, capacity
     unused_bwidth = capacity
@@ -53,7 +42,7 @@ class FairShare
           else
             h.assigned_demand += calc_demand
           end
-          puts "unused_bwidth #{ unused_bwidth }, #{ h.inspect }"
+          #puts "unused_bwidth #{ unused_bwidth }, #{ h.inspect }"
         end
       end
     end while unused_bwidth > 0
@@ -64,11 +53,16 @@ class FairShare
     hosts.count { | h | h.demand != h.assigned_demand }
   end
 
-  def to_s
-    pp @hosts
+  private
+
+  def choose_best( results, h )
+    results.each_with_index do | item, i |
+      best_host = item.detect { | each | each.id == h.id && each.assigned_demand > h.assigned_demand }
+      return best_host,i unless best_host.nil?
+    end
+    return nil, 0
   end
 
-  private
   def deep_clone obj
     to_obj = obj.inject( [] ) do | res, o |
       res << o.clone
@@ -78,18 +72,21 @@ class FairShare
 end
 
 
-hosts = (1..5).inject([]) do | res, element |
-  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0 ) 
-  res
-end
-
-hosts[0].demand = 2.0
-hosts[1].demand = 4.0
-hosts[2].demand = 2.0
-hosts[3].demand = 6.0
-hosts[4].demand = 3.0
-
-fs = FairShare.new( hosts, [ 15, 16 ] )
-fs.execute
-#fs.to_s
-
+#hosts = (1..5).inject([]) do | res, element |
+#  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0 ) 
+#  res
+#end
+#
+#hosts[0].demand = 2.0
+#hosts[1].demand = 4.0
+#hosts[2].demand = 2.0
+#hosts[3].demand = 6.0
+#hosts[4].demand = 3.0
+#
+#class FairShareTest
+#  include FairShare
+#end
+#fst = FairShareTest.new
+#fst.execute( hosts, [ 15, 16 ] )
+##fs.to_s
+#

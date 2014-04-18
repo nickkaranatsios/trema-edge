@@ -3,12 +3,23 @@
   <head>
     <meta http-equiv="Content-type" content="text/html; charset=utf-8">
     <title>Bandwidth-Enforcer - Traffic Steering Demo</title>
-    <script src="jquery-1.7.2.min.js"></script>
-    <script src="models.js"></script>
+    <link href="css/smoothness/jquery-ui-1.10.4.custom.css" rel="stylesheet">
     <link rel="stylesheet" href="app.css" type="text/css" media="screen">
+    <script src="js/jquery-1.10.2.js"></script>
+    <script src="js/jquery-ui-1.10.4.custom.js"></script>
+    <script src="models.js"></script>
   </head>
   <body>
     <div id="stage">
+    </div>
+    <div id="host-dialog-form" title="Assign bandwidth">
+      <p class="validateTips">All form fields required.</p>
+      <form>
+      <fieldset>
+        <label name="bandwidth">Bandwidth</label>
+        <input type="text" name="bandwidth" id="bandwidth" class="text ui-widget-content ui-corner-all">
+      </fieldset>
+      </form>
     </div>
     <script src="data.js"></script>
   </body>

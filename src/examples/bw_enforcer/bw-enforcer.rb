@@ -29,10 +29,12 @@ require 'pp'
 require_relative 'dial-algorithm'
 require_relative 'data-delegator'
 require_relative 'link-helper'
+require_relative 'fair-share'
 
 class BwEnforcer < Controller
   include Observable
   include LinkHelper
+  include FairShare
 
   oneshot_timer_event :store_topology, 10
   periodic_timer_event :collect_stats, 30
@@ -80,8 +82,14 @@ class BwEnforcer < Controller
     pp @data.links.all
   end
 
+  #
+  # process a packet in event from trema switch (datapath_id)
+  #
   def packet_in datapath_id, message
-    puts "packet in #{datapath_id.to_s(16)}, #{message.inspect}"
+    puts "packet in #{ datapath_id.to_s( 16 ) }"
+    pp message
+    return packet_in_fair_share datapath_id, message
+    pp @data.hosts.all
     dst_host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
     dst = dst_for( dst_host_name )
     src = get_switch( datapath_id )
@@ -99,6 +107,48 @@ class BwEnforcer < Controller
     pp path
     install_path path, message
     entrance_cost path, @data.links.all
+  end
+  
+  def packet_in_fair_share datapath_id, message
+    edge_link = @data.links.select( datapath_id )
+    all_hosts = @data.hosts.all.values
+    edge_hosts = []
+    edge_to_core_links = []
+    edge_link.each do | link |
+      to = link.to
+      host = all_hosts.select { | h | h.name == to }
+      unless host.empty?
+        host.first.assigned_demand = 0
+        edge_hosts << host.first
+      else
+        edge_to_core_links << link
+      end
+    end
+    #pp edge_to_core_links
+    #pp edge_hosts
+    result = compute edge_hosts, edge_to_core_links
+    pp result
+
+    src = get_switch( datapath_id )
+    dst_host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
+    src_host_name = @data.hosts.select( message.packet_info.eth_src.to_s ).name
+    dst = dst_for( dst_host_name )
+    if src.name != dst
+      host = result.select { | h | h.name == src_host_name }
+      unless host.empty?
+        core_switch = host.first.edge_to_core.to
+        path = @dial_algorithm.execute core_switch, dst
+        path.insert( 0, src.name )
+        path.push dst_host_name
+      end
+    else
+      path = []
+      path << src.name
+    end
+    return if path.empty?
+    @data.paths.setup "#{ src_host_name }:#{ dst_host_name }", path, message
+    pp path
+    install_path path, message
   end
 
   def collect_stats
