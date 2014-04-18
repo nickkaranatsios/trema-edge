@@ -30,11 +30,18 @@ class DemoServlet < Sinatra::Base
     topology.to_json
   end
 
+  put "/hosts/:name/assign/:bwidth" do | name, bwidth |
+    data = { "name" => name, "bwidth" => bwidth }
+    res = @redis_client.hset "hosts", name, data.to_json
+    res.to_s
+  end
+
   put '/topology/*' do | key |
     h = topology
     h[ key ].to_json
   end
-  
+
+
   configure( :delevelopment ) do | c |
     require "sinatra/reloader"
     c.also_reload "*.rb"

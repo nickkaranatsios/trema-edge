@@ -164,6 +164,7 @@ class BwEnforcer < Controller
       send_flow_stats path, message
     end
     redis_update_topology
+    redis_host_config_changes_poll
   end
 
   def flow_multipart_reply datapath_id, message
@@ -183,6 +184,24 @@ class BwEnforcer < Controller
       pp v
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
       v.each { | each | each.packet_count = 0; each.byte_count = 0 }
+    end
+  end
+
+  def redis_host_config_changes_poll
+    keys = @redis_client.hkeys( 'hosts' )
+    all_hosts = @data.hosts.all.values
+    keys.each do | k |
+      v = @redis_client.hget( 'hosts', k )
+      data = JSON::parse( v )
+      update_host_demand data, all_hosts
+    end
+    pp all_hosts
+  end
+
+  def update_host_demand data, hosts
+    host = hosts.select { | h | h.name == data[ 'name' ] }.first
+    unless host.nil?
+      host.demand = data[ 'bwidth' ].to_f
     end
   end
 
@@ -335,12 +354,12 @@ puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port
               flow_mod l.from_dpid_short, reverse_match, output_port
 
               match.in_port = @data.ports.select( l.to_dpid_short ).find_by_name( l.to_port ).port_no if l.to_dpid_short > 0
-              sleep 1
             end
           end
         end
       end
     end
+    sleep 2
     packet_out message.datapath_id, message, packet_out_port unless packet_out_port.nil?
   end
 

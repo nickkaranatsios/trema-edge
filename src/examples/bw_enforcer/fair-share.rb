@@ -9,7 +9,7 @@ module FairShare
       capacity = link.bwidth
       results << fair_share( hosts_to_compute, capacity )
     end
-    #pp results
+    pp results
     results.take( 1 ).each_with_index do | item, i |
       item.each do | h |
         h.edge_to_core = edge_to_core_links[ i ]
@@ -72,21 +72,26 @@ module FairShare
 end
 
 
-#hosts = (1..5).inject([]) do | res, element |
-#  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0 ) 
-#  res
-#end
-#
-#hosts[0].demand = 2.0
-#hosts[1].demand = 4.0
-#hosts[2].demand = 2.0
-#hosts[3].demand = 6.0
-#hosts[4].demand = 3.0
-#
-#class FairShareTest
-#  include FairShare
-#end
-#fst = FairShareTest.new
-#fst.execute( hosts, [ 15, 16 ] )
-##fs.to_s
-#
+hosts = (1..4).inject([]) do | res, element |
+  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0 ) 
+  res
+end
+
+hosts[0].demand = 6.0
+hosts[1].demand = 2.6
+hosts[2].demand = 5.0
+hosts[3].demand = 5.0
+
+class FairShareTest
+  include FairShare
+  def execute hosts, links
+    compute hosts, links
+  end
+end
+fst = FairShareTest.new
+ links = []
+ links << OpenStruct.new( bwidth: 15 )
+ links << OpenStruct.new( bwidth: 16 )
+results = fst.execute( hosts, links )
+pp results
+

@@ -17,9 +17,8 @@ $(function($, window) {
     h: 50
   };
   var h_nodes = {}
-  var bwidth = $( '#bandwidth' );
-  var allFields = $( [] ).add( bwidth ); 
-  var tips = $( ".validateTips" );
+  var bwidth = $("#bandwidth");
+  var allFields = $([]).add(bwidth), tips = $(".validateTips");
 
   /*
   $(document).ready(function() {
@@ -139,9 +138,9 @@ $(function($, window) {
   function request_host_info(host, name) {
     window.console.log(host);
     window.console.log(name);
-    $( '#host-dialog-form ' ).dialog( { title: "Assign Bandwidth for " + host.title } );
-    $( "#bandwidth" ).attr( "value", 10 );
-    $( '#host-dialog-form' ).dialog( "open" );
+    $('#host-dialog-form ').dialog({title: "Assign Bandwidth for " + host.title});
+    $("#bandwidth").attr("value", 10);
+    $('#host-dialog-form').data('host_name', host.title).dialog("open");
   }
 
   function pkt_count(data, to) {
@@ -172,14 +171,23 @@ $(function($, window) {
     window.console.log(Node);
   }
 
-  function updateTips( t ) {
-      tips
-        .text( t )
-        .addClass( "ui-state-highlight" );
+  function updateTips(t) {
+      tips.text(t).addClass("ui-state-highlight");
       setTimeout(function() {
-        tips.removeClass( "ui-state-highlight", 1500 );
-      }, 500 );
+        tips.removeClass("ui-state-highlight", 1500);
+      }, 500);
   }
+
+  function checkType(o) {
+    var value = o.val();
+    if ($.isNumeric(value) === false) {
+      o.addClass("ui-state-error");
+      updateTips("Bandwidth entered must be a numeric decimal/float number");
+      return false;
+    }
+    return true;
+  }
+  
 
   $( '#host-dialog-form' ).dialog({
     autoOpen: false,
@@ -188,20 +196,36 @@ $(function($, window) {
     modal: true,
     buttons: {
       "Assign": function() {
-         var bwidth = $( "#bandwidth" ).val();
-         if ( $.isNumeric( bwidth ) === false ) {
-           updateTips( "Bandwidth entered must be a numeric decimal/float number" );
+         allFields.removeClass("ui-state-error");
+         var bValid = true;
+         bValid = checkType(bwidth);
+         if (bValid) {
+           var bwidthVal = bwidth.val();
+           var hostName = $(this).data('host_name');
+           putBwidth(hostName, bwidthVal);
+           window.console.log(bwidth.val());
+           $( this ).dialog("close");
          }
-         window.console.log( bwidth );
-         $( this ).dialog( "close" );
       },
       Cancel:function() {
         $( this ).dialog( "close" );
       }
     },
     close: function() {
-      allFields.val( "" ).removeClass( "ui-state-error" );
+      allFields.val("").removeClass("ui-state-error");
     }
   });
+
+  function putBwidth(host, bwidth) {
+    $.ajax({
+      type: 'PUT',
+      dataType: 'json',
+      url: '/hosts/' + host + '/assign/' + bwidth,
+      success: function(data) {
+        // TODO change the bwidth display info
+        window.console.log("put bwidth successfully");
+      }
+    });
+  }
   
 }(jQuery, window));
