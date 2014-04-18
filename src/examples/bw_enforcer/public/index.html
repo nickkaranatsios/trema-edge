@@ -12,12 +12,11 @@
   <body>
     <div id="stage">
     </div>
-    <div id="host-dialog-form" title="Assign bandwidth">
-      <p class="validateTips">All form fields required.</p>
+    <div style="font-size:60%;" id="host-dialog-form">
       <form>
       <fieldset>
-        <label name="bandwidth">Bandwidth</label>
-        <input type="text" name="bandwidth" id="bandwidth" class="text ui-widget-content ui-corner-all">
+        <label name="bandwidth">Bandwidth(Mbps)</label>
+        <input type="number" name="bandwidth" id="bandwidth" min="5" max="1000" class="text ui-widget-content ui-corner-all">
       </fieldset>
       </form>
     </div>

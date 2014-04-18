@@ -19,6 +19,7 @@ $(function($, window) {
   var h_nodes = {}
   var bwidth = $( '#bandwidth' );
   var allFields = $( [] ).add( bwidth ); 
+  var tips = $( ".validateTips" );
 
   /*
   $(document).ready(function() {
@@ -138,6 +139,8 @@ $(function($, window) {
   function request_host_info(host, name) {
     window.console.log(host);
     window.console.log(name);
+    $( '#host-dialog-form ' ).dialog( { title: "Assign Bandwidth for " + host.title } );
+    $( "#bandwidth" ).attr( "value", 10 );
     $( '#host-dialog-form' ).dialog( "open" );
   }
 
@@ -153,6 +156,7 @@ $(function($, window) {
   }
 
   function link_cost(data, to) {
+  var tips = $( ".validateTips" );
     var str = ""
     var links = jQuery.parseJSON(data);
     $(links).each(function(i, link) {
@@ -168,13 +172,28 @@ $(function($, window) {
     window.console.log(Node);
   }
 
+  function updateTips( t ) {
+      tips
+        .text( t )
+        .addClass( "ui-state-highlight" );
+      setTimeout(function() {
+        tips.removeClass( "ui-state-highlight", 1500 );
+      }, 500 );
+  }
+
   $( '#host-dialog-form' ).dialog({
     autoOpen: false,
-    height: 200,
-    width: 250,
+    height: 260,
+    width: 350,
     modal: true,
     buttons: {
-      "Change Bandwidth": function() {
+      "Assign": function() {
+         var bwidth = $( "#bandwidth" ).val();
+         if ( $.isNumeric( bwidth ) === false ) {
+           updateTips( "Bandwidth entered must be a numeric decimal/float number" );
+         }
+         window.console.log( bwidth );
+         $( this ).dialog( "close" );
       },
       Cancel:function() {
         $( this ).dialog( "close" );
