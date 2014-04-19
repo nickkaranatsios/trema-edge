@@ -4,12 +4,21 @@ require 'pp'
 module FairShare
   def compute hosts, edge_to_core_links
     results = []
+    #edge_to_core_links.each do | link |
+    #  hosts_to_compute = deep_clone( hosts )
+    #  capacity = link.bwidth
+    #  results << fair_share( hosts_to_compute, capacity )
+    #end
+    hosts_to_compute = deep_clone( hosts )
     edge_to_core_links.each do | link |
-      hosts_to_compute = deep_clone( hosts )
       capacity = link.bwidth
-      results << fair_share( hosts_to_compute, capacity )
+      fair_share( hosts_to_compute, capacity )
+      add_accumulated_demand hosts_to_compute
     end
-    pp results
+    hosts_to_compute.sort! do | a, b | 
+      b.accumulated_assigned_demand <=> a.accumulated_assigned_demand
+    end
+    pp hosts_to_compute
     results.take( 1 ).each_with_index do | item, i |
       item.each do | h |
         h.edge_to_core = edge_to_core_links[ i ]
@@ -23,6 +32,16 @@ module FairShare
       end
     end
     results[ 0 ]
+  end
+
+  def add_accumulated_demand result
+    result.each do | h |
+      h.accumulated_assigned_demand = h.accumulated_assigned_demand + h.assigned_demand
+      if h.accumulated_assigned_demand > h.demand
+        h.accumulated_assigned_demand = h.demand
+      end
+      h.assigned_demand = 0
+    end
   end
 
 
@@ -65,6 +84,11 @@ module FairShare
 
   def deep_clone obj
     to_obj = obj.inject( [] ) do | res, o |
+      if o.assigned_demand != 0
+        o.demand = o.assigned_demand
+        o.assigned_demand = 0
+        o.accumulated_assigned_demand = 0
+      end
       res << o.clone
       res
     end
@@ -73,7 +97,7 @@ end
 
 
 hosts = (1..4).inject([]) do | res, element |
-  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0 ) 
+  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0, accumulated_assigned_demand: 0 ) 
   res
 end
 
@@ -90,8 +114,8 @@ class FairShareTest
 end
 fst = FairShareTest.new
  links = []
- links << OpenStruct.new( bwidth: 15 )
- links << OpenStruct.new( bwidth: 16 )
+ links << OpenStruct.new( name: "c1", bwidth: 10 )
+ links << OpenStruct.new( name: "c2", bwidth: 4 )
 results = fst.execute( hosts, links )
 pp results
 

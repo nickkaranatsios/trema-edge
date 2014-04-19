@@ -12,7 +12,8 @@ class HostHash
         mac: h.mac, 
         ip: h.ip, 
         demand: h.bwidth,
-        assigned_demand: 0 )
+        assigned_demand: 0,
+        accumulated_assigned_demand: 0 )
     end
   end
 
