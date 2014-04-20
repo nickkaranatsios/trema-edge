@@ -9,41 +9,49 @@ module FairShare
     #  capacity = link.bwidth
     #  results << fair_share( hosts_to_compute, capacity )
     #end
+    total_demand = hosts.reduce( 0 ) { | memo, h | memo + h.demand }
+    puts "total_demand #{ total_demand }"
+    total_capacity = edge_to_core_links.reduce( 0 ) { | memo, h | memo + h.bwidth }
+    demand_count = count_of_unsatisfied( hosts )
+    capacity_count = edge_to_core_links.length
+    puts "total_capacity #{ total_capacity }"
+    puts "demand count #{ count_of_unsatisfied( hosts ) }"
+
     hosts_to_compute = deep_clone( hosts )
+    no_of_links = edge_to_core_links.length
+    puts "capacity count #{ no_of_links }"
     edge_to_core_links.each do | link |
       capacity = link.bwidth
-      fair_share( hosts_to_compute, capacity )
+      #capacity = ( link.bwidth - ( demand_count / no_of_links.to_f ) )  if edge_to_core_links.length > 1
+      #capacity = total_capacity
+      puts "capacity is #{ capacity }"
+      fair_share hosts_to_compute, capacity
+      pp hosts_to_compute
       add_accumulated_demand hosts_to_compute
     end
     hosts_to_compute.sort! do | a, b | 
       b.accumulated_assigned_demand <=> a.accumulated_assigned_demand
     end
     pp hosts_to_compute
-    results.take( 1 ).each_with_index do | item, i |
-      item.each do | h |
-        h.edge_to_core = edge_to_core_links[ i ]
-        if h.demand != h.assigned_demand
-          new_host, idx = choose_best( results, h )
-          unless new_host.nil?
-            h.edge_to_core = edge_to_core_links[ idx ]
-            h.assigned_demand = new_host.assigned_demand
+    edge_to_core_links.each do | link |
+      capacity = link.bwidth
+      tmp = 0
+      fraction = 0.1
+      hosts_to_compute.each do | h |
+        if ( tmp + h.accumulated_assigned_demand ) < ( capacity + fraction )
+          if h.edge_to_core.nil?
+            tmp += h.accumulated_assigned_demand
+            h.assigned_demand = h.accumulated_assigned_demand
+            h.edge_to_core = link 
           end
         end
       end
     end
-    results[ 0 ]
+    hosts_to_compute
   end
 
-  def add_accumulated_demand result
-    result.each do | h |
-      h.accumulated_assigned_demand = h.accumulated_assigned_demand + h.assigned_demand
-      if h.accumulated_assigned_demand > h.demand
-        h.accumulated_assigned_demand = h.demand
-      end
-      h.assigned_demand = 0
-    end
-  end
 
+  private
 
   def fair_share hosts, capacity
     unused_bwidth = capacity
@@ -72,14 +80,15 @@ module FairShare
     hosts.count { | h | h.demand != h.assigned_demand }
   end
 
-  private
 
-  def choose_best( results, h )
-    results.each_with_index do | item, i |
-      best_host = item.detect { | each | each.id == h.id && each.assigned_demand > h.assigned_demand }
-      return best_host,i unless best_host.nil?
+  def add_accumulated_demand result
+    result.each do | h |
+      h.accumulated_assigned_demand = h.accumulated_assigned_demand + h.assigned_demand
+      if h.accumulated_assigned_demand > h.demand
+        h.accumulated_assigned_demand = h.demand
+      end
+      h.assigned_demand = 0
     end
-    return nil, 0
   end
 
   def deep_clone obj
@@ -114,8 +123,9 @@ class FairShareTest
 end
 fst = FairShareTest.new
  links = []
- links << OpenStruct.new( name: "c1", bwidth: 10 )
- links << OpenStruct.new( name: "c2", bwidth: 4 )
+ links << OpenStruct.new( name: "c1", bwidth: 5 )
+ links << OpenStruct.new( name: "c2", bwidth: 5 )
+ links << OpenStruct.new( name: "c3", bwidth: 5 )
 results = fst.execute( hosts, links )
 pp results
 
