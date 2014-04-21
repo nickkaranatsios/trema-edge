@@ -31,8 +31,14 @@ class DemoServlet < Sinatra::Base
   end
 
   put "/hosts/:name/assign/:bwidth" do | name, bwidth |
-    data = { "name" => name, "bwidth" => bwidth }
+    data = { :name => name, :bwidth => bwidth }
     res = @redis_client.hset "hosts", name, data.to_json
+    res.to_s
+  end
+
+  put "/links/from/:from/to/:to/assign/:bwidth" do | from, to, bwidth |
+    data = { :from => from, :to => to, :bwidth => bwidth }
+    res = @redis_client.hset "links", "#{ from }:#{ to }", data.to_json
     res.to_s
   end
 

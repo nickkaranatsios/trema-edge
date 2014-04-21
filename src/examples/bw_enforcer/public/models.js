@@ -235,6 +235,9 @@
    */
   function Segment(opts) {
     Particle.prototype.constructor.call(this, opts);
+    this.el.on({
+      dblclick: this.onDblClick.bind(this)
+    });
 
     this.el.css({ width: this.dimensions.w, height: this.dimensions.h });
 
@@ -279,6 +282,11 @@
 
   Segment.prototype = new Particle();
   Segment.prototype.constructor = Particle;
+
+  Segment.prototype.onDblClick = function(e) {
+    (this.events.dblclick || this.events.base).call(this);
+    return false;
+  };
 
   /**
    * Calculate the rotation of the line based

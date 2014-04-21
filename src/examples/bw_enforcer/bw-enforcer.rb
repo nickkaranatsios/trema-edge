@@ -89,26 +89,39 @@ class BwEnforcer < Controller
     puts "packet in #{ datapath_id.to_s( 16 ) }"
     pp message
     return packet_in_fair_share datapath_id, message
-    pp @data.hosts.all
-    dst_host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
-    dst = dst_for( dst_host_name )
-    src = get_switch( datapath_id )
-    puts "src = #{ src.name } dst = #{ dst }"
-    if src.name != dst
-      path = @dial_algorithm.execute src.name, dst
-      return if path.empty?
-    else
-      # handle the case where src and dst is the same.
-      path = []
-      path << src.name
-    end
-    @data.paths.setup "#{ @data.hosts.select( message.packet_info.eth_src.to_s ).name }:#{ dst_host_name }", path, message
-    path.push dst_host_name
-    pp path
-    install_path path, message
-    entrance_cost path, @data.links.all
   end
   
+
+  def collect_stats
+    @data.paths.for_each_path do | src_dst_key, value |
+      items = src_dst_key.split( ':' )
+      src_host_name = items[ 0 ]
+      dst_host_name = items[ 1 ]
+      path = value.path
+      message = value.pkt_in_message
+      path.push dst_host_name
+      puts path.inspect
+      send_flow_stats path, message
+    end
+    redis_update_topology
+    redis_host_config_changes_poll
+    redis_link_config_changes_poll
+  end
+
+  def flow_multipart_reply datapath_id, message
+    if datapath_id == 225
+      puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }"
+      pp message
+    end
+    if message.parts.length > 0
+      process_flow_stats_reply datapath_id, message
+    end
+  end
+
+  ##############################################################################
+  private
+  ##############################################################################
+
   def packet_in_fair_share datapath_id, message
     edge_link = @data.links.select( datapath_id )
     all_hosts = @data.hosts.all.values
@@ -151,42 +164,36 @@ class BwEnforcer < Controller
     install_path path, message
   end
 
-  def collect_stats
-    @data.paths.for_each_path do | src_dst_key, value |
-      items = src_dst_key.split( ':' )
-      src_host_name = items[ 0 ]
-      dst_host_name = items[ 1 ]
-      path = value.path
-      message = value.pkt_in_message
-      path.push dst_host_name
-      puts path.inspect
-      #reroute_path path, message
-      send_flow_stats path, message
-    end
-    redis_update_topology
-    redis_host_config_changes_poll
-  end
-
-  def flow_multipart_reply datapath_id, message
-    links = @data.links.select( datapath_id )
-    puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }, #{ message.inspect }" if datapath_id == 193
-    if message.parts.length > 0
-      process_flow_stats_reply datapath_id, message
-    end
-  end
-
-  ##############################################################################
-  private
-  ##############################################################################
-
   def redis_update_topology
+    all_hosts = @data.hosts.all.values
     @data.links.each do | k, v |
       pp v
+      v.each do | each |
+        arr_host = all_hosts.select { | h | h.name == each.to  }
+        unless arr_host.empty?
+          host = arr_host.first
+          cli_host = Trema::Host[ host.name ]
+
+          host_stats = cli_host.rx_stats
+          update_host_stats host_stats, each
+
+          host_stats = cli_host.tx_stats
+          update_host_stats host_stats, each
+        end
+      end
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
       v.each { | each | each.packet_count = 0; each.byte_count = 0 }
     end
   end
 
+  def update_host_stats stats, link
+    return if stats.nil?
+    unless stats.ip_src.nil?
+      link.packet_count += stats.n_pkts 
+      link.byte_count += stats.n_octets
+    end
+  end
+  
   def redis_host_config_changes_poll
     keys = @redis_client.hkeys( 'hosts' )
     all_hosts = @data.hosts.all.values
@@ -196,6 +203,21 @@ class BwEnforcer < Controller
       update_host_demand data, all_hosts
     end
     pp all_hosts
+  end
+
+  def redis_link_config_changes_poll
+    keys = @redis_client.hkeys( 'links' )
+    keys.each do | k |
+      v = @redis_client.hget( 'links', k )
+      data = JSON::parse( v )
+      from = data[ 'from' ]
+      link = @data.links.select( from.to_i( 16 ) )
+      to = data[ 'to' ]
+      bwidth = data[ 'bwidth' ].to_f
+      link.each do | l |
+        l.bwidth = bwidth if l.from == from && l.to == to 
+      end
+    end
   end
 
   def update_host_demand data, hosts
@@ -215,16 +237,9 @@ class BwEnforcer < Controller
     links = @data.links.select( datapath_id )
     transaction_id = message.transaction_id
     flow_multi_replies = message.parts
-
+    link = links[ transaction_id ]
     flow_multi_replies.each do | msg |
-      link = links[ transaction_id ]
       update_flow_stats link, msg
-      unless link.bwidth.nil?
-        #update_link_cost link, msg
-        #reroute_link( link, @data.paths ) if link_adjusted?
-      end
-      #puts "link info: #{ link.inspect }"
-      #puts
     end
   end
 
@@ -291,7 +306,7 @@ puts "packet out to #{datapath_id}, port #{port_no}"
         if l.from == from_sw && l.to == fwd_to
           adjust_link_capacity l
           transaction_id = link.index( l )
-puts "transaction id #{ transaction_id }"
+          puts "fs transaction id #{ transaction_id } from #{ l.from } to #{ l.to }"
           send_message l.from_dpid_short, FlowMultipartRequest.new( 
             transaction_id: transaction_id,
             cookie: 0,

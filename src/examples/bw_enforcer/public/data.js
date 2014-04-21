@@ -18,7 +18,9 @@ $(function($, window) {
   };
   var h_nodes = {}
   var bwidth = $("#bandwidth");
-  var allFields = $([]).add(bwidth), tips = $(".validateTips");
+  var link_bwidth = $("#link_bandwidth");
+  var hostFields = $([]).add(bwidth), tips = $(".validateTips");
+  var linkFields = $([]).add(link_bwidth), tips = $(".validateTips");
 
   /*
   $(document).ready(function() {
@@ -71,7 +73,13 @@ $(function($, window) {
             h: 5,
             stage: stage,
             origin: h_nodes[from],
-            destination: h_nodes[to] 
+            destination: h_nodes[to],
+            events: {
+              dblclick: function() {
+                window.console.log("segment clicked for " + this.origin.title + "  " + this.destination.title);
+                put_link_info(this.origin.title, this.destination.title);
+              }
+            }
           }).attach();
         } else {
           host_node = new Node({
@@ -84,7 +92,6 @@ $(function($, window) {
             y: start_y,
             events: {
               dblclick: function() {
-                // window.console.log(this);
                 request_host_info(this, to);
               }
             }
@@ -120,7 +127,7 @@ $(function($, window) {
             return;
           }
           pkts = pkt_count(data, dst_node.title);
-          node_data += node.title + "=>" + dst_node.title + ":pkt_count(" + pkts + ") cost(" + link_cost(data, dst_node.title) + ")</br>";
+          node_data += node.title + "=>" + dst_node.title + ":pkt_count(" + pkts + ")</br>";
         });
         h5_el = node.el.find('h5');
         if (h5_el.length != 0 ) {
@@ -138,9 +145,15 @@ $(function($, window) {
   function request_host_info(host, name) {
     window.console.log(host);
     window.console.log(name);
-    $('#host-dialog-form ').dialog({title: "Assign Bandwidth for " + host.title});
-    $("#bandwidth").attr("value", 10);
-    $('#host-dialog-form').data('host_name', host.title).dialog("open");
+    $('#host-dialog-form').dialog({title: "Assign Bandwidth for " + host.title});
+    $("#bandwidth").attr('value', 10);
+    $('#host-dialog-form').data('host_name', host.title).dialog('open');
+  }
+
+  function put_link_info(from, to) {
+    $('#link-dialog-form').dialog({title: "Assign Bandwidth for link " + from + "==>" + to});
+    $('#link_bandwidth').attr('value', 20);
+    $('#link-dialog-form').data('from', from).data('to', to).dialog('open');
   }
 
   function pkt_count(data, to) {
@@ -189,30 +202,56 @@ $(function($, window) {
   }
   
 
-  $( '#host-dialog-form' ).dialog({
+  $('#host-dialog-form').dialog({
     autoOpen: false,
     height: 260,
     width: 350,
     modal: true,
     buttons: {
       "Assign": function() {
-         allFields.removeClass("ui-state-error");
+         hostFields.removeClass("ui-state-error");
          var bValid = true;
          bValid = checkType(bwidth);
          if (bValid) {
            var bwidthVal = bwidth.val();
            var hostName = $(this).data('host_name');
            putBwidth(hostName, bwidthVal);
-           window.console.log(bwidth.val());
-           $( this ).dialog("close");
+           $(this).dialog("close");
          }
       },
       Cancel:function() {
-        $( this ).dialog( "close" );
+        $(this).dialog("close");
       }
     },
     close: function() {
-      allFields.val("").removeClass("ui-state-error");
+      hostFields.val("").removeClass("ui-state-error");
+    }
+  });
+
+  $('#link-dialog-form').dialog({
+    autoOpen: false,
+    height: 260,
+    width: 550,
+    modal: true,
+    buttons: {
+      "Assign": function() {
+         linkFields.removeClass("ui-state-error");
+         var bValid = true;
+         bValid = checkType(link_bwidth);
+         if (bValid) {
+           var bwidthVal = link_bwidth.val();
+           var from = $(this).data('from');
+           var to = $(this).data('to');
+           putLinkBwidth(from, to, bwidthVal);
+           $(this).dialog("close");
+         }
+      },
+      Cancel:function() {
+        $(this).dialog("close");
+      }
+    },
+    close: function() {
+      linkFields.val("").removeClass("ui-state-error");
     }
   });
 
@@ -223,7 +262,18 @@ $(function($, window) {
       url: '/hosts/' + host + '/assign/' + bwidth,
       success: function(data) {
         // TODO change the bwidth display info
-        window.console.log("put bwidth successfully");
+        window.console.log("put host bwidth request successfully");
+      }
+    });
+  }
+
+  function putLinkBwidth(from, to, bwidth) {
+    $.ajax({
+      type: 'PUT',
+      dataType: 'json',
+      url: '/links/from/' + from + '/to/' + to + '/assign/' + bwidth,
+      success: function(data) {
+        window.console.log("put link bwidth request successfully");
       }
     });
   }

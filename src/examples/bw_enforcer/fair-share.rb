@@ -3,12 +3,6 @@ require 'pp'
 
 module FairShare
   def compute hosts, edge_to_core_links
-    results = []
-    #edge_to_core_links.each do | link |
-    #  hosts_to_compute = deep_clone( hosts )
-    #  capacity = link.bwidth
-    #  results << fair_share( hosts_to_compute, capacity )
-    #end
     total_demand = hosts.reduce( 0 ) { | memo, h | memo + h.demand }
     puts "total_demand #{ total_demand }"
     total_capacity = edge_to_core_links.reduce( 0 ) { | memo, h | memo + h.bwidth }
@@ -47,11 +41,19 @@ module FairShare
         end
       end
     end
+    if flag_any_unassigned hosts_to_compute
+      puts "Ffailed to find a fair solution for all hosts"
+      puts "Suggest increment the link capacity bandwidth"
+    end
     hosts_to_compute
   end
 
 
   private
+
+  def flag_any_unassigned hosts
+    hosts.any? { | h | h.assigned_demand == 0 && h.edge_to_core.nil? }
+  end
 
   def fair_share hosts, capacity
     unused_bwidth = capacity
@@ -105,27 +107,27 @@ module FairShare
 end
 
 
-hosts = (1..4).inject([]) do | res, element |
-  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0, accumulated_assigned_demand: 0 ) 
-  res
-end
-
-hosts[0].demand = 6.0
-hosts[1].demand = 2.6
-hosts[2].demand = 5.0
-hosts[3].demand = 5.0
-
-class FairShareTest
-  include FairShare
-  def execute hosts, links
-    compute hosts, links
-  end
-end
-fst = FairShareTest.new
- links = []
- links << OpenStruct.new( name: "c1", bwidth: 5 )
- links << OpenStruct.new( name: "c2", bwidth: 5 )
- links << OpenStruct.new( name: "c3", bwidth: 5 )
-results = fst.execute( hosts, links )
-pp results
-
+#hosts = (1..4).inject([]) do | res, element |
+#  res << OpenStruct.new( id: "host#{ element }", demand: element * 2, assigned_demand: 0, accumulated_assigned_demand: 0 ) 
+#  res
+#end
+#
+#hosts[0].demand = 6.0
+#hosts[1].demand = 2.6
+#hosts[2].demand = 5.0
+#hosts[3].demand = 5.0
+#
+#class FairShareTest
+#  include FairShare
+#  def execute hosts, links
+#    compute hosts, links
+#  end
+#end
+#fst = FairShareTest.new
+# links = []
+# links << OpenStruct.new( name: "c1", bwidth: 5 )
+# links << OpenStruct.new( name: "c2", bwidth: 5 )
+# links << OpenStruct.new( name: "c3", bwidth: 7 )
+#results = fst.execute( hosts, links )
+#pp results
+#
