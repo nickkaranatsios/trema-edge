@@ -74,12 +74,13 @@ class BwEnforcer < Controller
 
 
   def store_topology
+    puts "update topology called"
     @data.hosts.setup Trema::Host
     @data.hosts.to_s
+    @all_hosts = @data.hosts.all.values
     redis_update_topology
     changed
     notify_observers self, @data.links.all
-    pp @data.links.all
   end
 
   #
@@ -92,18 +93,25 @@ class BwEnforcer < Controller
   end
   
 
+  #
+  # periodically collect stats from all configured paths 
+  # and update the redis db for the web application to read
+  #
   def collect_stats
+    dst_hosts =[]
+    @ingress_switches = []
     @data.paths.for_each_path do | src_dst_key, value |
       items = src_dst_key.split( ':' )
       src_host_name = items[ 0 ]
       dst_host_name = items[ 1 ]
+      dst_hosts << dst_host_name
       path = value.path
       message = value.pkt_in_message
+      @ingress_switches << message.datapath_id
       path.push dst_host_name
-      puts path.inspect
       send_flow_stats path, message
     end
-    redis_update_topology
+    redis_update_topology dst_hosts.uniq
     redis_host_config_changes_poll
     redis_link_config_changes_poll
   end
@@ -124,12 +132,17 @@ class BwEnforcer < Controller
 
   def packet_in_fair_share datapath_id, message
     edge_link = @data.links.select( datapath_id )
-    all_hosts = @data.hosts.all.values
+    src_host_name = @data.hosts.select( message.packet_info.eth_src.to_s ).name
+    # sometimes we get a packet in from core switch that caused because the flow mod
+    # is not installed yet or for some error in the switch. TODO identify the real
+    # cause of the problem
+    #
+    return if edge_link.none? { | l | l.to == src_host_name }
     edge_hosts = []
     edge_to_core_links = []
     edge_link.each do | link |
       to = link.to
-      host = all_hosts.select { | h | h.name == to }
+      host = @all_hosts.select { | h | h.name == to }
       unless host.empty?
         host.first.assigned_demand = 0
         edge_hosts << host.first
@@ -139,12 +152,11 @@ class BwEnforcer < Controller
     end
     #pp edge_to_core_links
     #pp edge_hosts
-    result = compute edge_hosts, edge_to_core_links
+    result = compute( edge_hosts, edge_to_core_links )
     pp result
 
     src = get_switch( datapath_id )
     dst_host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
-    src_host_name = @data.hosts.select( message.packet_info.eth_src.to_s ).name
     dst = dst_for( dst_host_name )
     if src.name != dst
       host = result.select { | h | h.name == src_host_name }
@@ -164,14 +176,15 @@ class BwEnforcer < Controller
     install_path path, message
   end
 
-  def redis_update_topology
-    all_hosts = @data.hosts.all.values
+  def redis_update_topology dst_hosts=[]
     @data.links.each do | k, v |
       pp v
       v.each do | each |
-        arr_host = all_hosts.select { | h | h.name == each.to  }
+        arr_host = @all_hosts.select { | h | h.name == each.to  }
         unless arr_host.empty?
           host = arr_host.first
+          is_dst_host = dst_hosts.any? { | d | d == host.name }
+          next if is_dst_host
           cli_host = Trema::Host[ host.name ]
 
           host_stats = cli_host.rx_stats
@@ -186,23 +199,14 @@ class BwEnforcer < Controller
     end
   end
 
-  def update_host_stats stats, link
-    return if stats.nil?
-    unless stats.ip_src.nil?
-      link.packet_count += stats.n_pkts 
-      link.byte_count += stats.n_octets
-    end
-  end
-  
   def redis_host_config_changes_poll
     keys = @redis_client.hkeys( 'hosts' )
-    all_hosts = @data.hosts.all.values
     keys.each do | k |
       v = @redis_client.hget( 'hosts', k )
       data = JSON::parse( v )
-      update_host_demand data, all_hosts
+      update_host_demand data, @all_hosts
     end
-    pp all_hosts
+    pp @all_hosts
   end
 
   def redis_link_config_changes_poll
@@ -238,8 +242,13 @@ class BwEnforcer < Controller
     transaction_id = message.transaction_id
     flow_multi_replies = message.parts
     link = links[ transaction_id ]
+    ingress_switch = @ingress_switches.uniq.one? { | e | e == message.datapath_id }
     flow_multi_replies.each do | msg |
       update_flow_stats link, msg
+      if ingress_switch
+        puts "packet out update #{ msg.packet_count }"
+        update_flow_stats link, msg 
+      end
     end
   end
 
@@ -282,7 +291,6 @@ class BwEnforcer < Controller
 
 
   def packet_out datapath_id, message, port_no
-puts "packet out to #{datapath_id}, port #{port_no}"
     action = Actions::SendOutPort.new( port_number: port_no )
     send_packet_out(
       datapath_id,

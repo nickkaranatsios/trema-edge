@@ -27,6 +27,14 @@ puts "l is #{ l.inspect }"
     link.byte_count += msg.byte_count
   end
 
+  def update_host_stats stats, link
+    return if stats.nil?
+    unless stats.ip_src.nil?
+      link.packet_count += stats.n_pkts 
+      link.byte_count += stats.n_octets
+    end
+  end
+
   def adjust_link_capacity link
     if link.packet_count < link.prev_packet_count
       link.packet_count = link.prev_packet_count

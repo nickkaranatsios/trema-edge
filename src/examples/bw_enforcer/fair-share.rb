@@ -16,8 +16,6 @@ module FairShare
     puts "capacity count #{ no_of_links }"
     edge_to_core_links.each do | link |
       capacity = link.bwidth
-      #capacity = ( link.bwidth - ( demand_count / no_of_links.to_f ) )  if edge_to_core_links.length > 1
-      #capacity = total_capacity
       puts "capacity is #{ capacity }"
       fair_share hosts_to_compute, capacity
       pp hosts_to_compute
