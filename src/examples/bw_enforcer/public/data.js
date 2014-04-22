@@ -77,7 +77,7 @@ $(function($, window) {
             events: {
               dblclick: function() {
                 window.console.log("segment clicked for " + this.origin.title + "  " + this.destination.title);
-                put_link_info(this.origin.title, this.destination.title);
+                request_link_info(this.origin.title, this.destination.title);
               }
             }
           }).attach();
@@ -92,6 +92,7 @@ $(function($, window) {
             y: start_y,
             events: {
               dblclick: function() {
+                window.console.log(this);
                 request_host_info(this, to);
               }
             }
@@ -99,6 +100,7 @@ $(function($, window) {
           start_x += 100;
           new Segment({
             type: 'segment',
+            w: 0,
             h: 5,
             stage: stage,
             origin: h_nodes[from],
@@ -143,17 +145,11 @@ $(function($, window) {
   }
 
   function request_host_info(host, name) {
-    window.console.log(host);
-    window.console.log(name);
-    $('#host-dialog-form').dialog({title: "Assign Bandwidth for " + host.title});
-    $("#bandwidth").attr('value', 10);
-    $('#host-dialog-form').data('host_name', host.title).dialog('open');
+    host_info = getPutHost(host.title);
   }
 
-  function put_link_info(from, to) {
-    $('#link-dialog-form').dialog({title: "Assign Bandwidth for link " + from + "==>" + to});
-    $('#link_bandwidth').attr('value', 20);
-    $('#link-dialog-form').data('from', from).data('to', to).dialog('open');
+  function request_link_info(from, to) {
+    link_info = getPutLink(from, to);
   }
 
   function pkt_count(data, to) {
@@ -277,5 +273,42 @@ $(function($, window) {
       }
     });
   }
-  
+
+  function getPutHost(key) {
+    $.ajax({
+      type: 'GET',
+      dataType: 'json',
+      url: '/hosts/' + key,
+      success: function(data) {
+        host_info = jQuery.parseJSON(data);
+        $('#host-dialog-form').dialog({title: "Assign Bandwidth for " + key});
+        $("#bandwidth").val(5.0);
+        if (host_info['bwidth']) {
+          var cur_val = parseFloat(host_info['bwidth']);
+          window.console.log("host " + key + " data " + cur_val);
+          $("#bandwidth").val(cur_val);
+        }
+        $('#host-dialog-form').data('host_name', key).dialog('open');
+      }
+    });
+  }
+
+  function getPutLink(from, to) {
+    $.ajax({
+      type: 'GET',
+      dataType: 'json',
+      url: '/links/from/' + from + '/to/' + to,
+      success: function(data) {
+        window.console.log("data " + data['from'] + " " + data['bwidth']);
+        $('#link_bandwidth').val(10.0);
+        if (data['bwidth']) {
+          var cur_val = parseFloat(data['bwidth']);
+          window.console.log("cur_val is " + cur_val);
+          $('#link_bandwidth').val(cur_val);
+        }
+        $('#link-dialog-form').dialog({title: "Assign Bandwidth for link " + data['from'] + "=>" + data['to']});
+        $('#link-dialog-form').data('from', data['from']).data('to', data['to']).dialog('open');
+      }
+    });
+  }
 }(jQuery, window));

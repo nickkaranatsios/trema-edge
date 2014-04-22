@@ -30,6 +30,19 @@ class DemoServlet < Sinatra::Base
     topology.to_json
   end
 
+  get "/links/from/:from/to/:to" do | from, to |
+    h = topology  
+    link = h[ from ]
+    link_obj = JSON.parse( link )
+    res = link_obj.select { | e | e[ 'to' ] == to }.first
+    res.to_json
+  end
+
+  get "/hosts/:name" do | name |
+    host( name ).to_json
+  end
+   
+
   put "/hosts/:name/assign/:bwidth" do | name, bwidth |
     data = { :name => name, :bwidth => bwidth }
     res = @redis_client.hset "hosts", name, data.to_json
@@ -62,6 +75,20 @@ class DemoServlet < Sinatra::Base
     keys.each do | k |
       v = @redis_client.hget( 'topo', k )
       h[ k ] = v
+    end
+    h
+  end
+
+  def host( name="" )
+    h = {}
+    keys = @redis_client.hkeys( 'hosts' )
+    if name.empty?
+      keys.each do | k |
+        v = @redis_client.hget( 'hosts', k )
+        h[ k ] = v
+      end
+    else
+      h = @redis_client.hget( 'hosts', name )
     end
     h
   end

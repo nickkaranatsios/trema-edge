@@ -81,6 +81,7 @@ class BwEnforcer < Controller
     redis_update_topology
     changed
     notify_observers self, @data.links.all
+    redis_update_hosts @all_hosts
   end
 
   #
@@ -196,6 +197,12 @@ class BwEnforcer < Controller
       end
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
       v.each { | each | each.packet_count = 0; each.byte_count = 0 }
+    end
+  end
+
+  def redis_update_hosts hosts
+    hosts.each do | h |
+      @redis_client.hset "hosts", h.name, { :name => h.name, :bwidth => h.demand }.to_json
     end
   end
 
