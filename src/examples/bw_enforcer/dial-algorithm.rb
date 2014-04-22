@@ -22,7 +22,7 @@ class DialAlgorithm
       cost = 0
       dl[ cost ] = origin
       begin
-        puts "cost is #{ cost }"
+        #puts "cost is #{ cost }"
         traverse links[ dl[ cost ] ], link_cost, dl, pred
         #puts dl.inspect
         #puts pred.inspect
@@ -59,7 +59,7 @@ class DialAlgorithm
       cost = link_cost[ link.from ]
       new_cost = cost + link.cost
       if link_cost[ link.to ] > new_cost
-        puts "new cost #{ new_cost } for #{ link.to }"
+        #puts "new cost #{ new_cost } for #{ link.to }"
         link.cost = new_cost
         pred[ link.to ] = link.from
         dl[ new_cost ] = link.to.to_i( 16 )
@@ -71,9 +71,7 @@ class DialAlgorithm
   def find_min distance_labels
     keys = distance_labels.keys.sort
     cost = nil
-    unless keys.empty?
-      cost = keys.first
-    end
+    cost = keys.first if !keys.empty?
     cost
   end
 
@@ -84,7 +82,7 @@ class DialAlgorithm
         path << k
         path << pred[ k ]
       else
-        path << pred[ path.last ] unless pred[ path.last ].nil?
+        path << pred[ path.last ] if pred[ path.last ]
       end
     end
     puts "path = #{path.reverse.join("==>")}"

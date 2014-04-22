@@ -70,6 +70,7 @@ $(function($, window) {
         if ( from in h_nodes && to in h_nodes ) {
           new Segment({
             type: 'segment',
+            w: 0,
             h: 5,
             stage: stage,
             origin: h_nodes[from],

@@ -67,9 +67,7 @@ class BwEnforcer < Controller
     puts "port desc multipart reply from datapath_id #{ datapath_id.to_s( 16 ) }"
     pp message.parts[ 0 ].ports
     switch = get_switch( datapath_id )
-    unless switch.nil?
-      @data.links.setup datapath_id, Trema::Link, switch.name, message.parts[ 0 ].ports
-    end
+    @data.links.setup datapath_id, Trema::Link, switch.name, message.parts[ 0 ].ports if switch
   end
 
 
@@ -144,11 +142,11 @@ class BwEnforcer < Controller
     edge_link.each do | link |
       to = link.to
       host = @all_hosts.select { | h | h.name == to }
-      unless host.empty?
+      if host.empty?
+        edge_to_core_links << link
+      else
         host.first.assigned_demand = 0
         edge_hosts << host.first
-      else
-        edge_to_core_links << link
       end
     end
     #pp edge_to_core_links
@@ -182,7 +180,7 @@ class BwEnforcer < Controller
       pp v
       v.each do | each |
         arr_host = @all_hosts.select { | h | h.name == each.to  }
-        unless arr_host.empty?
+        if !arr_host.empty?
           host = arr_host.first
           is_dst_host = dst_hosts.any? { | d | d == host.name }
           next if is_dst_host
@@ -233,9 +231,7 @@ class BwEnforcer < Controller
 
   def update_host_demand data, hosts
     host = hosts.select { | h | h.name == data[ 'name' ] }.first
-    unless host.nil?
-      host.demand = data[ 'bwidth' ].to_f
-    end
+    host.demand = data[ 'bwidth' ].to_f if host
   end
 
   def json_str v
@@ -268,9 +264,7 @@ class BwEnforcer < Controller
     @data.links.each do | k, v |
       links = v
       edge = links.select { | l | l.to == host }
-      unless edge.empty?
-        return edge.first.from
-      end
+      return edge.first.from if !edge.empty?
     end
     ""
   end
@@ -345,8 +339,8 @@ class BwEnforcer < Controller
   end
 
   def each_link link, &block
-    unless link.nil?
-      unless link.empty?
+    if link
+      if !link.empty?
         link.each do | l |
           block.call l
         end
@@ -367,8 +361,8 @@ puts match.inspect
         fwd_to = path[ idx + 1 ]
       end
       link = @data.links.select( from_sw.to_i( 16 ) )
-      unless link.nil?
-        unless link.empty?
+      if link
+        if !link.empty?
           link.each do | l |
             if l.from == from_sw && l.to == fwd_to
               packet_out_port = l.from_port_no if idx == 0
@@ -390,7 +384,7 @@ puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port
       end
     end
     sleep 2
-    packet_out message.datapath_id, message, packet_out_port unless packet_out_port.nil?
+    packet_out message.datapath_id, message, packet_out_port if packet_out_port
   end
 
   def reroute_path path, message
@@ -404,8 +398,8 @@ puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port
         fwd_to = path[ idx + 1 ]
       end
       link = @data.links.select( from_sw.to_i( 16 ) )
-      unless link.nil?
-        unless link.empty?
+      if link
+        if !link.empty?
           link.each do | l |
             if l.from == from_sw && l.to == fwd_to
               flow_mod l.from_dpid_short, match, l.from_port_no, :del

@@ -6,10 +6,10 @@ module LinkHelper
     src = path[ 0 ]
     dst = path[ 1 ]
     link = links[ src.to_i( 16 ) ]
-    unless link.nil?
+    if link
       l = link.select { | e | e.from == src && e.to == dst }
 puts "l is #{ l.inspect }"
-      unless l.empty?
+      if !l.empty?
         o = l.pop
         o.cost = o.cost + 1
       end
@@ -29,7 +29,7 @@ puts "l is #{ l.inspect }"
 
   def update_host_stats stats, link
     return if stats.nil?
-    unless stats.ip_src.nil?
+    if stats.ip_src
       link.packet_count += stats.n_pkts 
       link.byte_count += stats.n_octets
     end
