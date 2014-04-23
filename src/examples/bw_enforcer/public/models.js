@@ -266,10 +266,10 @@
 
     /* Place the canvas at the end of the line element */
     /*
+    */
     this.canvas.el.css({
       right: 1 + this.canvas.raw.width * -1
     });
-    */
 
     /* Save references to the origin and destination Nodes */
     this.origin = opts.origin;

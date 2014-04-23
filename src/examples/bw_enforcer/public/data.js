@@ -77,6 +77,8 @@ $(function($, window) {
             destination: h_nodes[to],
             events: {
               dblclick: function() {
+                this.el.css('background-color', 'rgb(204,53,178)');
+                window.console.log(this.canvas.el.css("background-color"));
                 window.console.log("segment clicked for " + this.origin.title + "  " + this.destination.title);
                 request_link_info(this.origin.title, this.destination.title);
               }
