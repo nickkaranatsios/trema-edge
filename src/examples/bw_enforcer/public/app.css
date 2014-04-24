@@ -1,12 +1,32 @@
 html {
   height: 100%;
 }
+#header {
+  height: 15%;
+  color: rgb(51,125,245);
+  text-align: center;
+  border-bottom: 2px solid #a547d1;
+}
+#stage {
+  width: 100%;
+  height: 80%;
+  float:left;
+}
+#footer {
+  clear: both;
+  color: rgb(51,125,245);
+  font-size: medium;
+  text-align: center;
+  border-top: 2px solid #a547d1;
+  margin-bottom: 20px;
+}
+
 body {
   -webkit-user-select: none;
   -moz-user-select: none;
   background-image: url(images/appvis-bg.png);
   height: 100%;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   font-family: rotis, san-serif;
 }
@@ -18,8 +38,6 @@ body {
   border: 2px solid #FFF;
   box-shadow: 0 0 5px #888;
   position: absolute;
-  top: 0;
-  left: 0;
   z-index: 2;
   -webkit-backface-visibility: hidden;
 }
@@ -31,8 +49,6 @@ body {
   border: 2px solid #FFF;
   box-shadow: 0 0 2px #888;
   position: absolute;
-  top: 0;
-  left: 0;
   z-index: 2;
   -webkit-backface-visibility: hidden;
 }
@@ -96,7 +112,6 @@ body {
   -webkit-transform-origin: 0 100%;
   -moz-transform-origin: 0 100%;
   -ms-transform-origin: 0 100%;
-  transform-origin: 0 100%;
   border: 1px solid white;
   border-right: 0;
   -webkit-backface-visibility: hidden;
