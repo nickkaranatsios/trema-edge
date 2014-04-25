@@ -131,8 +131,22 @@ $(function($, window) {
           if (node.title == dst_node.title) {
             return;
           }
-          pkts = pkt_count(data, dst_node.title);
-          node_data += node.title + "=>" + dst_node.title + ":pkt_count(" + pkts + ")</br>";
+          pkts = pkt_info(data, dst_node.title);
+          node_data += node.title + "=>" + dst_node.title + ":RX bytes:"; 
+          res_rx = unit_of(pkts['rxbytes']);
+          res_tx = unit_of(pkts['txbytes']);
+          edge = (/^e/).test(node.title);
+          core = (/^c/).test(dst_node.title);
+          if (edge && core) {
+            capacity = Math.pow(10, 6 ) * pkts['bwidth'];
+            bwidth = capacity - Math.max(pkts['rxbytes'], pkts['txbytes']);
+            window.console.log("capacity left " + bwidth);
+            used_bwidth = capacity - bwidth;
+            if (used_bwidth < capacity / 3.0) {
+              this.el.css('background-color', '#ffa500');
+            }
+          }
+          node_data += pkts['rxbytes'] + " ("+ res_rx['num_to_unit'] + " " + res_rx['unit'] + ") TX bytes: " + pkts['txbytes'] + " ("+ res_tx['num_to_unit'] + " " + res_tx['unit'] + ")</br>";
         });
         h5_el = node.el.find('h5');
         if (h5_el.length != 0 ) {
@@ -155,12 +169,14 @@ $(function($, window) {
     link_info = getPutLink(from, to);
   }
 
-  function pkt_count(data, to) {
-    var pkts = "";
+  function pkt_info(data, to) {
+    var pkts = {};
     var links = jQuery.parseJSON(data);
     $(links).each(function(i, link) {
       if (link['to'] == to) {
-        pkts = link['packet_count'];
+        pkts['rxbytes'] = link['rx_byte_count'];
+        pkts['txbytes'] = link['tx_byte_count'];
+        pkts['bwidth'] = link['bwidth'];
       }
     });
     return pkts;
@@ -314,4 +330,36 @@ $(function($, window) {
       }
     });
   }
+
+  Number.prototype.round = function(places){
+    places = Math.pow(10, places); 
+    return Math.round(this * places)/places;
+  }
+
+  function unit_of(num) {
+    res = {};
+    if (num >=0 && num < Math.pow(10, 6)) {
+      res = { 
+        unit: "KB",
+        num_to_unit: (num / Math.pow(10, 3)).round(2)
+      };
+    } else if (num >= Math.pow(10, 6) && num < Math.pow(10, 9)) {
+      res = {
+        unit: "MB",
+        num_to_unit: (num / Math.pow(10, 6)).round(2)
+      };
+    } else if (num >= Math.pow(10, 9) && num < Math.pow(10, 12)) {
+      res = {
+        unit: "GB",
+        num_to_unit: (num / Math.pow(10, 9)).round(2) 
+      };
+    } else if (num >= Math.pow(10, 12) && num < Math.pow(10, 15)) {
+      res = {
+        unit: "PB",
+        num_to_unit: (num / Math.pow(10, 12)).round(2)
+      };
+    }
+    return res;
+  }
 }(jQuery, window));
+
