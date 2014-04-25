@@ -22,7 +22,12 @@ puts "l is #{ l.inspect }"
     adjust link
   end
 
-  def update_flow_stats link, msg
+  def update_flow_stats link, msg, rx
+    if rx
+      link.rx_byte_count += msg.byte_count
+    else
+      link.tx_byte_count += msg.byte_count
+    end
     link.packet_count += msg.packet_count
     link.byte_count += msg.byte_count
   end

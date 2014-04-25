@@ -194,7 +194,12 @@ class BwEnforcer < Controller
         end
       end
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
-      v.each { | each | each.packet_count = 0; each.byte_count = 0 }
+      v.each do | each | 
+        each.packet_count = 0
+        each.byte_count = 0
+        each.rx_byte_count = 0
+        each.tx_byte_count = 0
+      end
     end
   end
 
@@ -236,21 +241,27 @@ class BwEnforcer < Controller
 
   def json_str v
     str = "["
-    str += v.map { |x| x.to_h.to_json }.join( ',' )
+    str += v.map { | x | x.to_h.to_json }.join( ',' )
     str << "]"
   end
 
   def process_flow_stats_reply datapath_id, message
     links = @data.links.select( datapath_id )
     transaction_id = message.transaction_id
+    rx = false
+    if transaction_id >= links.length 
+      rx = true
+      link = links[ transaction_id - links.length ]
+    else
+      link = links[ transaction_id ]
+    end
     flow_multi_replies = message.parts
-    link = links[ transaction_id ]
     ingress_switch = @ingress_switches.uniq.one? { | e | e == message.datapath_id }
-    flow_multi_replies.each do | msg |
-      update_flow_stats link, msg
+    flow_multi_replies.each_with_index do | msg |
+      update_flow_stats link, msg, rx
       if ingress_switch
         puts "packet out update #{ msg.packet_count }"
-        update_flow_stats link, msg 
+        update_flow_stats link, msg, rx
       end
     end
   end
@@ -314,10 +325,9 @@ class BwEnforcer < Controller
       each_link link do | l |
         if l.from == from_sw && l.to == fwd_to
           adjust_link_capacity l
-          transaction_id = link.index( l )
-          puts "fs transaction id #{ transaction_id } from #{ l.from } to #{ l.to }"
+          puts "fs tx transaction id #{ link.index( l ) } rx transaction id #{ link.index( l ) + link.length } from #{ l.from } to #{ l.to }"
           send_message l.from_dpid_short, FlowMultipartRequest.new( 
-            transaction_id: transaction_id,
+            transaction_id: link.index( l ),
             cookie: 0,
             out_port: OFPP_ANY,
             out_group: OFPG_ANY,
@@ -326,7 +336,7 @@ class BwEnforcer < Controller
           reverse_match = match_reverse( match )
           reverse_match.in_port = l.from_port_no
           send_message l.from_dpid_short, FlowMultipartRequest.new( 
-            transaction_id: transaction_id,
+            transaction_id: link.index( l ) + link.length,
             cookie: 0,
             out_port: OFPP_ANY,
             out_group: OFPG_ANY,
