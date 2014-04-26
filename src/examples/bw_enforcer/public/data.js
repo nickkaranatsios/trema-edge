@@ -140,11 +140,16 @@ $(function($, window) {
           if (edge && core) {
             capacity = Math.pow(10, 6 ) * pkts['bwidth'];
             bwidth = capacity - Math.max(pkts['rxbytes'], pkts['txbytes']);
-            window.console.log("capacity left " + bwidth);
             used_bwidth = capacity - bwidth;
-            if (used_bwidth < capacity / 3.0) {
-              this.el.css('background-color', '#ffa500');
+            window.console.log("used bwidth" + used_bwidth);
+            var color = 'red';
+            if (used_bwidth >= 0 && used_bwidth < capacity / 3.0) {
+              color = '#bae4b3';
             }
+            else if (used_bwidth >= capacity / 3.0 && used_bwidth >= capacity / 2.0) {
+              color = '#ffa500';
+            }
+            this.el.css('background-color', color);
           }
           node_data += pkts['rxbytes'] + " ("+ res_rx['num_to_unit'] + " " + res_rx['unit'] + ") TX bytes: " + pkts['txbytes'] + " ("+ res_tx['num_to_unit'] + " " + res_tx['unit'] + ")</br>";
         });

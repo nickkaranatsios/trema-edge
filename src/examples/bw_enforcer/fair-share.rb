@@ -40,8 +40,9 @@ module FairShare
       end
     end
     if flag_any_unassigned hosts_to_compute
-      puts "Ffailed to find a fair solution for all hosts"
+      puts "Failed to find a fair solution for all hosts"
       puts "Suggest increment the link capacity bandwidth"
+      return []
     end
     hosts_to_compute
   end

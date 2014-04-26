@@ -28,10 +28,10 @@ class DialAlgorithm
         #puts pred.inspect
         #puts link_cost.inspect
         dl.delete cost
-      end while not ( cost = find_min( dl ) ).nil?
+      end while not ( cost = find_min( dl, dst.to_i( 16 ) ) ).nil?
       #puts dl.inspect
       #puts "pred is #{ pred.inspect }"
-      path = dial_path( pred )
+      path = dial_path( pred, dst )
     end
     path
   end
@@ -68,22 +68,27 @@ class DialAlgorithm
     end
   end
 
-  def find_min distance_labels
+  def find_min distance_labels, dst
     keys = distance_labels.keys.sort
     cost = nil
-    cost = keys.first if !keys.empty?
+    if !keys.empty?
+      value = distance_labels[ keys.first ]
+      return cost if value == dst
+      cost = keys.first
+    end
     cost
   end
 
-  def dial_path pred
+  def dial_path pred, dst
     path = []
-    pred.keys.reverse.each do | k |
-      if path.empty? 
-        path << k
-        path << pred[ k ]
-      else
-        path << pred[ path.last ] if pred[ path.last ]
+    if !pred.empty?
+      key = dst
+      while pred.has_key? key
+        path << key
+        key = pred[ key ]
       end
+      # insert the last node
+      path << key
     end
     puts "path = #{path.reverse.join("==>")}"
     path.reverse

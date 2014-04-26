@@ -87,7 +87,7 @@ class BwEnforcer < Controller
   #
   def packet_in datapath_id, message
     puts "packet in #{ datapath_id.to_s( 16 ) }"
-    pp message
+    #pp message
     return packet_in_fair_share datapath_id, message
   end
   
@@ -98,7 +98,6 @@ class BwEnforcer < Controller
   #
   def collect_stats
     dst_hosts =[]
-    @ingress_switches = []
     @data.paths.for_each_path do | src_dst_key, value |
       items = src_dst_key.split( ':' )
       src_host_name = items[ 0 ]
@@ -106,7 +105,6 @@ class BwEnforcer < Controller
       dst_hosts << dst_host_name
       path = value.path
       message = value.pkt_in_message
-      @ingress_switches << message.datapath_id
       path.push dst_host_name
       send_flow_stats path, message
     end
@@ -152,6 +150,7 @@ class BwEnforcer < Controller
     #pp edge_to_core_links
     #pp edge_hosts
     result = compute( edge_hosts, edge_to_core_links )
+    return if result.empty?
     pp result
 
     src = get_switch( datapath_id )
@@ -187,10 +186,10 @@ class BwEnforcer < Controller
           cli_host = Trema::Host[ host.name ]
 
           host_stats = cli_host.rx_stats
-          update_host_stats host_stats, each
+          update_host_stats host_stats, each, true
 
           host_stats = cli_host.tx_stats
-          update_host_stats host_stats, each
+          update_host_stats host_stats, each, false
         end
       end
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
@@ -256,13 +255,8 @@ class BwEnforcer < Controller
       link = links[ transaction_id ]
     end
     flow_multi_replies = message.parts
-    ingress_switch = @ingress_switches.uniq.one? { | e | e == message.datapath_id }
     flow_multi_replies.each_with_index do | msg |
       update_flow_stats link, msg, rx
-      if ingress_switch
-        puts "packet out update #{ msg.packet_count }"
-        update_flow_stats link, msg, rx
-      end
     end
   end
 
