@@ -190,8 +190,6 @@ class BwEnforcer < Controller
       end
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )
       v.each do | each | 
-        each.packet_count = 0
-        each.byte_count = 0
         each.rx_byte_count = 0
         each.tx_byte_count = 0
       end
@@ -314,7 +312,6 @@ class BwEnforcer < Controller
       link = @data.links.select( from_sw.to_i( 16 ) )
       each_link link do | l |
         if l.from == from_sw && l.to == fwd_to
-          adjust_link_capacity l
           puts "fs tx transaction id #{ link.index( l ) } rx transaction id #{ link.index( l ) + link.length } from #{ l.from } to #{ l.to }"
           send_message l.from_dpid_short, FlowMultipartRequest.new( 
             transaction_id: link.index( l ),
@@ -352,7 +349,7 @@ class BwEnforcer < Controller
     match = ExactMatch.from( message )
 puts match.inspect
     dst_host = path.pop
-    packet_out_port = nil
+    packet_out_link = nil
     path.each_index do | idx |
       from_sw = path[ idx ]
       if idx == path.length - 1
@@ -365,7 +362,7 @@ puts match.inspect
         if !link.empty?
           link.each do | l |
             if l.from == from_sw && l.to == fwd_to
-              packet_out_port = l.from_port_no if idx == 0
+              packet_out_link = l if idx == 0
 puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port #{ l.from_port_no } when match in_port #{ match.in_port }"
               flow_mod l.from_dpid_short, match, l.from_port_no
 
@@ -384,7 +381,11 @@ puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port
       end
     end
     sleep 2
-    packet_out message.datapath_id, message, packet_out_port if packet_out_port
+    # because switch doesn't counts the packets out we manually adjust this figure here.
+    if packet_out_link
+      packet_out message.datapath_id, message, packet_out_link.from_port_no
+      packet_out_link.packet_out_tx_byte_count += message.total_len if packet_out_link.packet_out_tx_byte_count == 0
+    end
   end
 
   def reroute_path path, message

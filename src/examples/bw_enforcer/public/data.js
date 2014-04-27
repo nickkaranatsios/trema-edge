@@ -125,7 +125,7 @@ $(function($, window) {
         window.console.log(node);
         window.console.log("position ")
         window.console.log(node.el.position());
-        var node_data="Stats:</br>";
+        var node_data="";
         $(node.segments).each(function(i, seg) {
           dst_node = seg.destination;
           if (node.title == dst_node.title) {

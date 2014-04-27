@@ -108,10 +108,7 @@ class LinkHash
           cost: link.cost,
           config_cost: link.cost,
           bwidth: link.bwidth,
-          packet_count: 0,
-          prev_packet_count: 0,
-          byte_count: 0,
-          prev_byte_count: 0,
+          packet_out_tx_byte_count: 0,
           rx_byte_count: 0,
           tx_byte_count: 0
         )
