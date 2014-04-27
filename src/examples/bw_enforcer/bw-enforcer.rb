@@ -25,6 +25,7 @@ require 'redis'
 require 'trema/exact-match'
 require 'json'
 require 'observer'
+require 'ifconfig'
 require 'pp'
 require_relative 'dial-algorithm'
 require_relative 'data-delegator'
@@ -175,6 +176,7 @@ class BwEnforcer < Controller
   end
 
   def redis_update_topology dst_hosts=[]
+    cfg = IfconfigWrapper.new.parse
     @data.links.each do | k, v |
       pp v
       v.each do | each |
@@ -183,13 +185,7 @@ class BwEnforcer < Controller
           host = arr_host.first
           is_dst_host = dst_hosts.any? { | d | d == host.name }
           next if is_dst_host
-          cli_host = Trema::Host[ host.name ]
-
-          host_stats = cli_host.rx_stats
-          update_host_stats host_stats, each, true
-
-          host_stats = cli_host.tx_stats
-          update_host_stats host_stats, each, false
+          update_host_stats cfg[ each.from_port ].rx[ 'bytes' ], cfg[ each.from_port ].tx[ 'bytes' ], each
         end
       end
       @redis_client.hset "topo", k.to_s( 16 ), json_str( v )

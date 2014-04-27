@@ -32,15 +32,9 @@ puts "l is #{ l.inspect }"
     link.byte_count += msg.byte_count
   end
 
-  def update_host_stats stats, link, rx
-    return if stats.nil?
-    if stats.ip_src
-      if rx 
-        link.rx_byte_count += ( stats.n_pkts  * 64 )
-      else
-        link.tx_byte_count += ( stats.n_pkts * 64 )
-      end
-    end
+  def update_host_stats rx_bytes, tx_bytes, link
+    link.rx_byte_count += rx_bytes
+    link.tx_byte_count += tx_bytes
   end
 
   def adjust_link_capacity link
