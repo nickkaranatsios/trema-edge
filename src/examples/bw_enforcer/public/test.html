@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <title>Bandwidth-Enforcer - Traffic Steering Demo</title>
+    <link href="css/smoothness/jquery-ui-1.10.4.custom.css" rel="stylesheet">
+    <script src="js/jquery-1.10.2.js"></script>
+    <script src="js/jquery-ui-1.10.4.custom.js"></script>
+    <script src="js/ocanvas-2.6.0.min.js"></script>
+    <script src="js/ocanvas-2.6.0.js"></script>
+    <style>
+       .node {
+         -webkit-border-radius: 48px;
+         -moz-border-radius: 48px;
+         border-radius: 48px;
+         background: #067195;
+         border: 2px solid #FFF;
+         box-shadow: 0 0 5px #888;
+         position: absolute;
+         z-index: 2;
+         -webkit-backface-visibility: hidden;
+       }
+       .node h4 {
+         color: #067195;
+         position:absolute;
+         top: 5px;
+         left:10px;
+       }
+       .segment {
+         position: absolute;
+         background: #bae4b3;
+         z-index: 1;
+         -webkit-transform-origin: 0 100%;
+         -moz-transform-origin: 0 100%;
+         -ms-transform-origin: 0 100%;
+         border: 1px solid white;
+         border-right: 0;
+         -webkit-backface-visibility: hidden;
+         cursor: pointer;
+       }
+       .segment .endpoint {
+         position: absolute;
+         top: 0px;
+       }
+    </style>
+  </head>
+  <body>
+    <div class="node" style="width:25px;height:25px">
+      <h4>host1</h4>
+      <div class="segment" style="width:0px;height:5px">
+        <div class="endpoint" style="top:12.5px;left:12px;"></div>
+        <canvas id="canvas" width="0px" height="5px"></canvas>
+<!--
+        <script>
+          var canvas = document.getElementById('canvas');
+          var ctx = canvas.getContext('2d');
+          ctx.strokeStyle='red';
+          ctx.beginPath();
+          ctx.moveTo(12.5, 12.5);
+          ctx.lineTo(50, 12.5);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        </script>
+-->
+      </div>
+    </div>
+    <div class="node" style="left:200px;width:25px;height:25px;"><h4>host2</h4></div>
+    <canvas id="canvas" width="1920" height="800"></canvas>
+    <script>
+      var canvas = oCanvas.create({
+        canvas: "#canvas",
+        background: "#occ"
+      });
+      var node1 = canvas.display.rectangle({ 
+        x: 100, 
+        y: 100, 
+        width: 50, 
+        height: 50, 
+        fill: "#000", 
+        stroke:"outside 2px blue"
+      });
+      canvas.addChild(node1);
+      var node2 = canvas.display.rectangle({
+        x: 300,
+        y: 100,
+        width: 50,
+        height: 50,
+        fill: "#000",
+        stroke:"outside 2px blue"
+      });
+      node2.add();
+      var seg = canvas.display.line({
+	      start: { x: 125, y: 125 },
+	      end: { x: 320, y: 125 },
+	      stroke: "5px #0aa",
+	      cap: "round"
+      });
+      canvas.addChild(seg);
+    </script>
+  </body>
+</html>

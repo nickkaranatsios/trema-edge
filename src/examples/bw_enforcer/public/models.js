@@ -325,8 +325,7 @@
    */
   Segment.prototype.calculateWidth = function() {
     var w = Math.ceil(Math.sqrt(Math.pow(this.distance.x, 2) +
-                     Math.pow(this.distance.y, 2))) -
-      this.origin.dimensions.center.x - this.canvas.raw.width;
+                     Math.pow(this.distance.y, 2))) - this.canvas.raw.width;
     return w < 0 ? 0 : w;
   };
 

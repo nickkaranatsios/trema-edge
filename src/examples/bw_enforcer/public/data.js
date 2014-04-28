@@ -77,8 +77,6 @@ $(function($, window) {
             destination: h_nodes[to],
             events: {
               dblclick: function() {
-                this.el.css('background-color', 'rgb(204,53,178)');
-                window.console.log(this.canvas.el.css("background-color"));
                 window.console.log("segment clicked for " + this.origin.title + "  " + this.destination.title);
                 request_link_info(this.origin.title, this.destination.title);
               }
@@ -92,7 +90,7 @@ $(function($, window) {
             w: NODE_DIMENSIONS.w / 2,
             h: NODE_DIMENSIONS.h / 2,
             x: start_x,
-            y: start_y,
+            y: start_y + 6.25,
             events: {
               dblclick: function() {
                 window.console.log(this);
