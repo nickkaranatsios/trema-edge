@@ -53,6 +53,7 @@ $(function($, window) {
         h: NODE_DIMENSIONS.h,
         x: start_x,
         y: start_y,
+        offset_y: 0,
         events: {
           click: function() {
             // window.console.log(this);
@@ -83,6 +84,7 @@ $(function($, window) {
             }
           }).attach();
         } else {
+          host_start_y = start_y + (NODE_DIMENSIONS.h / 4)
           host_node = new Node({
             type: 'host',
             title: to,
@@ -90,7 +92,8 @@ $(function($, window) {
             w: NODE_DIMENSIONS.w / 2,
             h: NODE_DIMENSIONS.h / 2,
             x: start_x,
-            y: start_y + 6.25,
+            y: host_start_y,
+            offset_y: NODE_DIMENSIONS.h / 4,
             events: {
               dblclick: function() {
                 window.console.log(this);

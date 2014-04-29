@@ -32,6 +32,7 @@
   function Particle(opts) {
     opts = opts || {};
     this.title = opts.title;
+    this.offset_y = opts.offset_y;
 
     /* Store dimensions and pre-compute center */
     this.dimensions = {
@@ -250,17 +251,6 @@
       ctx: this.el.find('canvas')[0].getContext('2d')
     };
 
-    /* Set the canvas width and height in proportion
-       to the line dimensions */
-    /*
-    this.canvas.raw.height = this.dimensions.h + 10;
-    this.canvas.raw.width = Math.ceil((this.dimensions.h + 10) /
-                                      Math.sin(40 * DEG2RAD));
-    */
-
-    /*
-     * delete the arrowhead
-     */
     this.canvas.raw.height = this.dimensions.h;
     this.canvas.raw.width = this.dimensions.w;
 
@@ -301,7 +291,7 @@
 
     this.distance = {
       x: (this.origin.translate.x - this.destination.translate.x) * -1,
-      y: (this.origin.translate.y - this.destination.translate.y) * -1
+      y: (this.origin.translate.y - (this.destination.translate.y - this.destination.offset_y)) * -1
     };
 
     this.rotate = 'rotate(' +
@@ -325,7 +315,7 @@
    */
   Segment.prototype.calculateWidth = function() {
     var w = Math.ceil(Math.sqrt(Math.pow(this.distance.x, 2) +
-                     Math.pow(this.distance.y, 2))) - this.canvas.raw.width;
+                     Math.pow(this.distance.y, 2)));
     return w < 0 ? 0 : w;
   };
 
