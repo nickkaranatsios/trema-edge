@@ -15,7 +15,9 @@ html {
 #footer {
   clear: both;
   color: rgb(51,125,245);
-  font-size: medium;
+  font-size: 15px;
+  font-family: 'Open Sans';
+  font-style: italic;
   text-align: center;
   border-top: 2px solid #a547d1;
   margin-bottom: 20px;
@@ -28,7 +30,7 @@ body {
   height: 100%;
   margin: 0 auto;
   padding: 0;
-  font-family: rotis, san-serif;
+  font-family: Arial, Helvetica, sans-serif;
 }
 .node {
   -webkit-border-radius: 48px;
@@ -63,6 +65,8 @@ body {
   left: 56px;
   bottom: 0;
   font-size: 14px;
+  font-style: normal;
+  font-weight: normal;
 }
 
 .host h4 {
@@ -74,6 +78,8 @@ body {
   left: 30px;
   bottom: 0;
   font-size: 14px;
+  font-style: normal;
+  font-weight: normal;
 }
 .node h5 {
   color: rgb(63,153,226);
@@ -85,6 +91,8 @@ body {
   bottom: 0;
   top: 50px;
   font-size: 14px;
+  font-style: normal;
+  font-weight: normal;
 }
 
 .node.animate {
