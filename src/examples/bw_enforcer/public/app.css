@@ -5,7 +5,9 @@ html {
   height: 15%;
   color: rgb(51,125,245);
   text-align: center;
-  border-bottom: 2px solid #a547d1;
+  border-bottom: thick solid #a547d1;
+  border-bottom-left-radius: 2em;
+  border-bottom-right-radius: 2em;
 }
 #stage {
   width: 100%;
@@ -19,7 +21,10 @@ html {
   font-family: 'Open Sans';
   font-style: italic;
   text-align: center;
-  border-top: 2px solid #a547d1;
+  /* border-top: 2px solid #a547d1; */
+  border-top: thick solid #a547d1;
+  border-top-left-radius: 2em;
+  border-top-right-radius: 2em;
   margin-bottom: 20px;
 }
 
