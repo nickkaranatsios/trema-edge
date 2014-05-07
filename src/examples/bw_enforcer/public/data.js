@@ -22,19 +22,15 @@ $(function($, window) {
   var hostFields = $([]).add(bwidth), tips = $(".validateTips");
   var linkFields = $([]).add(link_bwidth), tips = $(".validateTips");
 
-  /*
   $(document).ready(function() {
-    var timer = setInterval(update_stats, 30000);
+    var timer = setInterval(update_stats, 2000);
 
     function update_stats() {
-      window.console.log("periodic update stats is called");
       for (var key in h_nodes) {
-        window.console.log(key);
         update_node_info(h_nodes[key], key);
       }
     }
   });
-  */
   
 
   $.getJSON('/topology', function(data) {
@@ -139,16 +135,43 @@ $(function($, window) {
           edge = (/^e/).test(node.title);
           core = (/^c/).test(dst_node.title);
           if (edge && core) {
-            capacity = Math.pow(10, 6 ) * pkts['bwidth'];
+            capacity = Math.pow(10, 6) * pkts['bwidth'];
             bwidth = capacity - Math.max(pkts['rxbytes'], pkts['txbytes']);
             used_bwidth = capacity - bwidth;
             window.console.log("used bwidth" + used_bwidth);
             var color = 'red';
-            if (used_bwidth >= 0 && used_bwidth < capacity / 3.0) {
+            /* for demo purposes only divide by 10 instead of 1/3 and half. */
+            if (used_bwidth >= 0 && used_bwidth < capacity / 100.0) {
+              // kind of green
               color = '#bae4b3';
             }
-            else if (used_bwidth >= capacity / 3.0 && used_bwidth >= capacity / 2.0) {
+            else if (used_bwidth > capacity / 100.0 && used_bwidth <= capacity / 90.0) {
+              // orange
               color = '#ffa500';
+            }
+            else if (used_bwidth > capacity / 90.0 && used_bwidth <= capacity / 80.0) {
+              color = '#00c5cd';
+            }
+            else if (used_bwidth > capacity / 80.0 && used_bwidth <= capacity / 70.0) {
+              color = '#9acd32';
+            }
+            else if (used_bwidth > capacity / 70.0 && used_bwidth <= capacity / 60.0) {
+              color = '#eedd82';
+            }
+            else if (used_bwidth > capacity / 60.0 && used_bwidth <= capacity / 50.0) {
+              color = '#faa460';
+            }
+            else if (used_bwidth > capacity / 50.0 && used_bwidth <= capacity / 40.0) {
+              color = '#f08080';
+            }
+            else if (used_bwidth > capacity / 40.0 && used_bwidth <= capacity / 30.0) {
+              color = '#c71585';
+            }
+            else if (used_bwidth > capacity / 30.0 && used_bwidth <= capacity / 20.0) {
+              color = '#9370db';
+            }
+            else if (used_bwidth > capacity / 20.0 && used_bwidth > capacity / 10.0) {
+              color = '#7cfc00';
             }
             this.el.css('background-color', color);
           }

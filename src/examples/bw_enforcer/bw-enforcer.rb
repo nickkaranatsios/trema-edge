@@ -38,12 +38,13 @@ class BwEnforcer < Controller
   include FairShare
 
   oneshot_timer_event :store_topology, 10
-  periodic_timer_event :collect_stats, 30
+  periodic_timer_event :collect_stats, 5
 
   def start
     @redis_client = Redis.new
     @dial_algorithm = DialAlgorithm.new
     @data = DataDelegator.new
+    @all_hosts = nil
     add_observer @dial_algorithm
   end
 
@@ -98,6 +99,7 @@ class BwEnforcer < Controller
   # and update the redis db for the web application to read
   #
   def collect_stats
+    return if @all_hosts.nil?
     dst_hosts =[]
     @data.paths.for_each_path do | src_dst_key, value |
       items = src_dst_key.split( ':' )
@@ -178,7 +180,7 @@ class BwEnforcer < Controller
   def redis_update_topology dst_hosts=[]
     cfg = IfconfigWrapper.new.parse
     @data.links.each do | k, v |
-      pp v
+      # pp v
       v.each do | each |
         arr_host = @all_hosts.select { | h | h.name == each.to  }
         if !arr_host.empty?
