@@ -17,9 +17,9 @@ $(function($, window) {
     h: 50
   };
   var h_nodes = {}
-  var bwidth = $("#bandwidth");
+  var bwidth_html = $("#bandwidth");
   var link_bwidth = $("#link_bandwidth");
-  var hostFields = $([]).add(bwidth), tips = $(".validateTips");
+  var hostFields = $([]).add(bwidth_html), tips = $(".validateTips");
   var linkFields = $([]).add(link_bwidth), tips = $(".validateTips");
 
   $(document).ready(function() {
@@ -170,8 +170,8 @@ $(function($, window) {
             else if (used_bwidth > capacity / 30.0 && used_bwidth <= capacity / 20.0) {
               color = '#9370db';
             }
-            else if (used_bwidth > capacity / 20.0 && used_bwidth > capacity / 10.0) {
-              color = '#7cfc00';
+            else if (used_bwidth > capacity / 20.0 && used_bwidth <= capacity / 10.0) {
+              color = '#ff4500';
             }
             this.el.css('background-color', color);
           }
@@ -255,9 +255,9 @@ $(function($, window) {
       "Assign": function() {
          hostFields.removeClass("ui-state-error");
          var bValid = true;
-         bValid = checkType(bwidth);
+         bValid = checkType(bwidth_html);
          if (bValid) {
-           var bwidthVal = bwidth.val();
+           var bwidthVal = bwidth_html.val();
            var hostName = $(this).data('host_name');
            putBwidth(hostName, bwidthVal);
            $(this).dialog("close");

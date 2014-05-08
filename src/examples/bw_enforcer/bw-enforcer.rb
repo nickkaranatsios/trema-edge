@@ -64,10 +64,10 @@ class BwEnforcer < Controller
 
   def port_desc_multipart_reply datapath_id, message
     @data.ports.setup datapath_id, message.parts[ 0 ].ports
-    @data.ports.to_s
+    # @data.ports.to_s
     # at the moment assume that there are 0 parts in message
-    puts "port desc multipart reply from datapath_id #{ datapath_id.to_s( 16 ) }"
-    pp message.parts[ 0 ].ports
+    #puts "port desc multipart reply from datapath_id #{ datapath_id.to_s( 16 ) }"
+    # pp message.parts[ 0 ].ports
     switch = get_switch( datapath_id )
     @data.links.setup datapath_id, Trema::Link, switch.name, message.parts[ 0 ].ports if switch
   end
@@ -76,7 +76,7 @@ class BwEnforcer < Controller
   def store_topology
     puts "update topology called"
     @data.hosts.setup Trema::Host
-    @data.hosts.to_s
+    #@data.hosts.to_s
     @all_hosts = @data.hosts.all.values
     redis_update_topology
     changed
@@ -117,10 +117,6 @@ class BwEnforcer < Controller
   end
 
   def flow_multipart_reply datapath_id, message
-    if datapath_id == 225
-      puts "flow multipart reply from #{ datapath_id.to_s( 16 ) }"
-      pp message
-    end
     if message.parts.length > 0
       process_flow_stats_reply datapath_id, message
     end
@@ -154,7 +150,7 @@ class BwEnforcer < Controller
     #pp edge_hosts
     result = compute( edge_hosts, edge_to_core_links )
     return if result.empty?
-    pp result
+    #pp result
 
     src = get_switch( datapath_id )
     dst_host_name = @data.hosts.select( message.packet_info.eth_dst.to_s ).name
@@ -211,7 +207,7 @@ class BwEnforcer < Controller
       data = JSON::parse( v )
       update_host_demand data, @all_hosts
     end
-    pp @all_hosts
+    # pp @all_hosts
   end
 
   def redis_link_config_changes_poll
@@ -314,7 +310,7 @@ class BwEnforcer < Controller
       link = @data.links.select( from_sw.to_i( 16 ) )
       each_link link do | l |
         if l.from == from_sw && l.to == fwd_to
-          puts "fs tx transaction id #{ link.index( l ) } rx transaction id #{ link.index( l ) + link.length } from #{ l.from } to #{ l.to }"
+          #puts "fs tx transaction id #{ link.index( l ) } rx transaction id #{ link.index( l ) + link.length } from #{ l.from } to #{ l.to }"
           send_message l.from_dpid_short, FlowMultipartRequest.new( 
             transaction_id: link.index( l ),
             cookie: 0,

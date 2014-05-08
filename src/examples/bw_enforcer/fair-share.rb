@@ -4,11 +4,11 @@ require 'pp'
 module FairShare
   def compute hosts, edge_to_core_links
     total_demand = hosts.reduce( 0 ) { | memo, h | memo + h.demand }
-    puts "total_demand #{ total_demand }"
+    puts "total demand #{ total_demand }"
     total_capacity = edge_to_core_links.reduce( 0 ) { | memo, h | memo + h.bwidth }
     demand_count = count_of_unsatisfied( hosts )
     capacity_count = edge_to_core_links.length
-    puts "total_capacity #{ total_capacity }"
+    puts "total capacity #{ total_capacity }"
     puts "demand count #{ count_of_unsatisfied( hosts ) }"
 
     hosts_to_compute = deep_clone( hosts )
@@ -18,13 +18,12 @@ module FairShare
       capacity = link.bwidth
       puts "capacity is #{ capacity }"
       fair_share hosts_to_compute, capacity
-      pp hosts_to_compute
+      #pp hosts_to_compute
       add_accumulated_demand hosts_to_compute
     end
     hosts_to_compute.sort! do | a, b | 
       b.accumulated_assigned_demand <=> a.accumulated_assigned_demand
     end
-    pp hosts_to_compute
     edge_to_core_links.each do | link |
       capacity = link.bwidth
       tmp = 0
@@ -44,6 +43,7 @@ module FairShare
       puts "Suggest increment the link capacity bandwidth"
       return []
     end
+    pp hosts_to_compute
     hosts_to_compute
   end
 
