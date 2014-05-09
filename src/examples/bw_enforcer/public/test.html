@@ -10,18 +10,69 @@
     <script src="js/jquery-ui-1.10.4.custom.js"></script>
     <script src="js/ocanvas-2.6.0.min.js"></script>
     <script src="js/ocanvas-2.6.0.js"></script>
+    <style>
+      body {
+        background:#ffffff;
+        margin:0;
+        padding:0;
+        overflow:hidden;
+      }
+      #myCanvas {
+        position:absolute;
+        left:0;
+        top:0;
+        width:800px;
+        height:480px;
+        background:#ffffff;
+      }
+  </style>
   </head>
   <body>
+    <canvas id="myCanvas" width="800" height="480"</canvas>
+    <script>
+      var ocanvas = oCanvas.create({
+        canvas: "#myCanvas",
+        background: "#0cc"
+      });
+      var rectangle = ocanvas.display.rectangle({
+	      x: 10,
+	      y: 10,
+	      width: 5,
+	      height: 5,
+	      fill: "#000"
+      });
+      ocanvas.addChild(rectangle);
+      ocanvas.setLoop(function() {
+        canvas_width = ocanvas.width;
+        canvas_height = ocanvas.height;
+        if (rectangle.x + 10 < canvas_width) {
+          rectangle.x += 10;
+        }
+        else {
+          rectangle.x = 10;
+          if (rectangle.y + 5 < canvas_height) {
+            rectangle.y += 5;
+          }
+          else {
+            ocanvas.timeline.stop();
+          }
+        }
+      });
+      ocanvas.timeline.fps = 10;
+      ocanvas.timeline.start();
+    </script>
+    <!--
     <div id="header">
       <h1>Bandwidth Enforcer/Traffic Steering</h1>
     </div>
     <section class="main">
       <div id="sb-container" class="sb-container">
         <div>
-          <span class="sb-icon icon-tree"></span>
+          <span class="sb-icon icon-tree"> </span>
             <h4><a href="#">Virtual Topology</a></h4>
         </div>
       </div>
     </section>
+    -->
   </body>
 </html>
