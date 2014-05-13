@@ -92,7 +92,6 @@ $(function($, window) {
             offset_y: NODE_DIMENSIONS.h / 4,
             events: {
               dblclick: function() {
-                window.console.log(this);
                 request_host_info(this, to);
               }
             }
@@ -106,6 +105,14 @@ $(function($, window) {
             origin: h_nodes[from],
             destination: host_node
           }).attach();
+          if (host_node.title == "host1" || host_node.title == "host2" || host_node.title == "host3") {
+            var color = '#9370db';
+            host_node.el.css('background-color', color);
+          } 
+          if (host_node.title == "host4") {
+            var color = '#ffa500';
+            host_node.el.css('background-color', color);
+          }
         }
       });
     });
@@ -136,11 +143,13 @@ $(function($, window) {
           core1 = (/c1/).test(dst_node.title);
           core2 = (/c2/).test(dst_node.title);
           var color = '#bae4b3';
-          if (edge1 && core1) {
+          if (edge1) {
+            if (core1 && (pkts['rxbytes'] > 0 || pkts['txbytes'] > 0)) {
               color = '#ffa500';
-          }
-          if (edge1 && core2) {
+            }
+            else if (core2 && (pkts['rxbytes'] > 0 || pkts['txbytes'] > 0)) {
               color = '#9370db';
+            }
           }
           this.el.css('background-color', color);
 
