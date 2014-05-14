@@ -132,6 +132,19 @@ $(function($, window) {
           node_data += node.title + "=>" + dst_node.title + ":RX bytes:"; 
           res_rx = unit_of(pkts['rxbytes']);
           res_tx = unit_of(pkts['txbytes']);
+          edge1 = (/e1/).test(node.title);
+          core1 = (/c1/).test(dst_node.title);
+          core2 = (/c2/).test(dst_node.title);
+          var color = '#bae4b3';
+          if (edge1 && core1) {
+              color = '#ffa500';
+          }
+          if (edge1 && core2) {
+              color = '#9370db';
+          }
+          this.el.css('background-color', color);
+
+          /*
           edge = (/^e/).test(node.title);
           core = (/^c/).test(dst_node.title);
           if (edge && core) {
@@ -140,13 +153,10 @@ $(function($, window) {
             used_bwidth = capacity - bwidth;
             window.console.log("used bwidth" + used_bwidth);
             var color = 'red';
-            /* for demo purposes only divide by 10 instead of 1/3 and half. */
             if (used_bwidth >= 0 && used_bwidth < capacity / 100.0) {
-              // kind of green
               color = '#bae4b3';
             }
             else if (used_bwidth > capacity / 100.0 && used_bwidth <= capacity / 90.0) {
-              // orange
               color = '#ffa500';
             }
             else if (used_bwidth > capacity / 90.0 && used_bwidth <= capacity / 80.0) {
@@ -175,6 +185,7 @@ $(function($, window) {
             }
             this.el.css('background-color', color);
           }
+          */
           node_data += pkts['rxbytes'] + " ("+ res_rx['num_to_unit'] + " " + res_rx['unit'] + ") TX bytes: " + pkts['txbytes'] + " ("+ res_tx['num_to_unit'] + " " + res_tx['unit'] + ")</br>";
         });
         h5_el = node.el.find('h5');
