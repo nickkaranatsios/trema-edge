@@ -88,8 +88,8 @@ class BwEnforcer < Controller
   # process a packet in event from trema switch (datapath_id)
   #
   def packet_in datapath_id, message
-    puts "packet in #{ datapath_id.to_s( 16 ) }"
-    #pp message
+    puts "packet in #{ datapath_id.to_s( 16 ) } in_port #{ message.match.in_port }"
+    # pp message
     return packet_in_fair_share datapath_id, message
   end
   

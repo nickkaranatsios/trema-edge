@@ -21,6 +21,8 @@ $(function($, window) {
   var link_bwidth = $("#link_bandwidth");
   var hostFields = $([]).add(bwidth_html), tips = $(".validateTips");
   var linkFields = $([]).add(link_bwidth), tips = $(".validateTips");
+  var e1_c1_pkts = 0;
+  var e1_c2_pkts = 0;
 
   $(document).ready(function() {
     var timer = setInterval(update_stats, 2000);
@@ -105,14 +107,6 @@ $(function($, window) {
             origin: h_nodes[from],
             destination: host_node
           }).attach();
-          if (host_node.title == "host1" || host_node.title == "host2" || host_node.title == "host3") {
-            var color = '#9370db';
-            host_node.el.css('background-color', color);
-          } 
-          if (host_node.title == "host4") {
-            var color = '#ffa500';
-            host_node.el.css('background-color', color);
-          }
         }
       });
     });
@@ -144,14 +138,30 @@ $(function($, window) {
           core2 = (/c2/).test(dst_node.title);
           var color = '#bae4b3';
           if (edge1) {
+            total_pkts = pkts['rxbytes'] + pkts['txbytes'];
             if (core1 && (pkts['rxbytes'] > 0 || pkts['txbytes'] > 0)) {
-              color = '#ffa500';
+              if (e1_c1_pkts == 0) { 
+                this.el.height(6);
+              } else if (e1_c1_pkts < total_pkts) {
+                this.el.height(this.el.height() + 1);
+              }
+              e1_c1_pkts = total_pkts;
+              // color = '#ffa500';
             }
             else if (core2 && (pkts['rxbytes'] > 0 || pkts['txbytes'] > 0)) {
-              color = '#9370db';
+              if (e1_c2_pkts == 0) {
+                this.el.height(6);
+              } else if (e1_c2_pkts < total_pkts) {
+                this.el.height(this.el.height() + 1);
+              }
+              e1_c2_pkts = total_pkts;
+              // color = '#9370db';
             }
           }
           this.el.css('background-color', color);
+          if (this.el.height() >= 12) {
+            this.el.height(12);
+          }
 
           /*
           edge = (/^e/).test(node.title);
