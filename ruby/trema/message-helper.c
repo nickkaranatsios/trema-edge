@@ -166,6 +166,21 @@ send_group_mod( int argc, VALUE *argv, VALUE self ) {
 
 
 static VALUE
+send_port_mod( int argc, VALUE *argv, VALUE self ) {
+  VALUE datapath_id = Qnil;
+  VALUE options = Qnil;
+  rb_scan_args( argc, argv, "11", &datapath_id, &options );
+
+  if ( !NIL_P( options ) ) {
+    VALUE port_mod = rb_funcall( rb_eval_string( "Trema::Messages::PortMod" ), rb_intern( "new" ), 1, options );
+
+    send_controller_message( self, datapath_id, port_mod );
+  }
+  return self;
+}
+
+
+static VALUE
 send_flow_multipart_request( int argc, VALUE *argv, VALUE self ) {
   VALUE datapath_id = Qnil;
   VALUE options = Qnil;
@@ -328,6 +343,7 @@ Init_message_helper( void ) {
   rb_define_module_function( mMessageHelper, "send_message", send_controller_message, 2 );
   rb_define_module_function( mMessageHelper, "send_packet_out", send_packet_out, - 1 );
   rb_define_module_function( mMessageHelper, "send_group_mod", send_group_mod, -1 );
+  rb_define_module_function( mMessageHelper, "send_port_mod", send_port_mod, -1 );
   rb_define_module_function( mMessageHelper, "send_flow_multipart_request", send_flow_multipart_request, -1 );
   rb_define_module_function( mMessageHelper, "send_desc_multipart_request", send_desc_multipart_request, -1 );
   rb_define_module_function( mMessageHelper, "send_aggregate_multipart_request", send_aggregate_multipart_request, - 1 );

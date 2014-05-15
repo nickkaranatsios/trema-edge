@@ -66,10 +66,25 @@ class BwEnforcer < Controller
     @data.ports.setup datapath_id, message.parts[ 0 ].ports
     # @data.ports.to_s
     # at the moment assume that there are 0 parts in message
-    #puts "port desc multipart reply from datapath_id #{ datapath_id.to_s( 16 ) }"
+    # puts "port desc multipart reply from datapath_id #{ datapath_id.to_s( 16 ) }"
     # pp message.parts[ 0 ].ports
+    port = message.parts[ 0 ].ports
     switch = get_switch( datapath_id )
+    if switch.name =~ /^c/
+      send_message datapath_id, PortMod.new( port_no: port.port_no,
+                                             hw_addr: port.hw_addr, 
+                                             config:  port.config | OFPPC_NO_PACKET_IN,
+                                             mask: 0x7f,
+                                             advertise: port.advertised )
+    end
     @data.links.setup datapath_id, Trema::Link, switch.name, message.parts[ 0 ].ports if switch
+  end
+
+  def table_multipart_reply datapath_id, message
+    puts "table multipart reply from #{ datapath_id.to_s( 16 ) }"
+    if message.parts.length > 0
+      pp message.parts[ 0 ]
+    end
   end
 
 
@@ -127,6 +142,7 @@ class BwEnforcer < Controller
   ##############################################################################
 
   def packet_in_fair_share datapath_id, message
+    # send_message datapath_id, TableMultipartRequest.new 
     edge_link = @data.links.select( datapath_id )
     src_host_name = @data.hosts.select( message.packet_info.eth_src.to_s ).name
     # sometimes we get a packet in from core switch that caused because the flow mod
