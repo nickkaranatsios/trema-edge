@@ -68,15 +68,20 @@ class BwEnforcer < Controller
     # at the moment assume that there are 0 parts in message
     # puts "port desc multipart reply from datapath_id #{ datapath_id.to_s( 16 ) }"
     # pp message.parts[ 0 ].ports
-    port = message.parts[ 0 ].ports
     switch = get_switch( datapath_id )
-    if switch.name =~ /^c/
-      send_message datapath_id, PortMod.new( port_no: port.port_no,
-                                             hw_addr: port.hw_addr, 
-                                             config:  port.config | OFPPC_NO_PACKET_IN,
-                                             mask: 0x7f,
-                                             advertise: port.advertised )
-    end
+    # if we ever wanted to stop receiving packet-ins from core switches
+    # uncomment the following if end loop. Might need to set the mask 
+    # properly according to the config setting.
+    #if switch.name =~ /^c/
+    #  ports = message.parts[ 0 ].ports
+    #  ports.each do | p |
+    #    send_message datapath_id, PortMod.new( port_no: p.port_no,
+    #                                         hw_addr: p.hw_addr, 
+    #                                         config:  p.config | OFPPC_NO_PACKET_IN,
+    #                                         mask: OFPPC_NO_PACKET_IN,
+    #                                         advertise: p.advertised )
+    #  end
+    #end
     @data.links.setup datapath_id, Trema::Link, switch.name, message.parts[ 0 ].ports if switch
   end
 
@@ -186,8 +191,19 @@ class BwEnforcer < Controller
     return if path.empty?
     @data.paths.setup "#{ src_host_name }:#{ dst_host_name }", path, message
     pp path
-    install_path path, message
+    @packet_out_link = install_path( path, message )
+    @packet_out_message = message
+    oneshot_timer_event :packet_out_dispatch, 1
   end
+
+  def packet_out_dispatch 
+    if @packet_out_link
+      packet_out @packet_out_message.datapath_id, @packet_out_message, @packet_out_link.from_port_no
+      # because switch doesn't counts the packets out we manually adjust this figure here.
+      @packet_out_link.packet_out_tx_byte_count += @packet_out_message.total_len if @packet_out_link.packet_out_tx_byte_count == 0
+    end
+  end
+
 
   def redis_update_topology dst_hosts=[]
     cfg = IfconfigWrapper.new.parse
@@ -394,12 +410,7 @@ puts "sending a flow mod-add to #{ l.from_dpid_short.to_s( 16 ) } output to port
         end
       end
     end
-    sleep 2
-    # because switch doesn't counts the packets out we manually adjust this figure here.
-    if packet_out_link
-      packet_out message.datapath_id, message, packet_out_link.from_port_no
-      packet_out_link.packet_out_tx_byte_count += message.total_len if packet_out_link.packet_out_tx_byte_count == 0
-    end
+    packet_out_link
   end
 
   def reroute_path path, message
